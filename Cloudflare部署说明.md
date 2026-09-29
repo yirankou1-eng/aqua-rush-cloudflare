@@ -16,7 +16,7 @@
 
 **费用与使用边界。** 当前配置使用免费套餐支持的 SQLite-backed Durable Objects，但代码不向数据库保存账号或比赛记录。房间只放在运行内存里，全部玩家离开即删除；服务重启或发布更新可能清空房间。每个房间最长两小时，比赛最长十五分钟。房间有人连接时会消耗 Durable Object 活跃时长，等待大厅也会消耗；关闭游戏页面可结束连接。免费额度是账号共享且有限的，用完后请求会失败，并非无限制服务。不要升级 Workers Paid，即可避免该付费套餐的固定月费。以 Cloudflare 当前账号页面和官方计费说明为准：https://developers.cloudflare.com/durable-objects/platform/pricing/ 。
 
-按照当前每位玩家比赛时每秒约 60 条输入消息估算，再按官方 20:1 折算与每天 100,000 次免费请求额度计算，四人持续比赛合计约 2.3 小时就可能接近请求上限，两人约 4.6 小时；多个房间共享额度，实际还要扣除连接、心跳和其他请求。这只是容量估算，不是保证时长。它适合少量朋友偶尔玩，不能当作无限量公开联机服务。
+按照当前每位玩家持续按住同一组按键时每秒约 20 条输入消息估算，再按官方 20:1 折算与每天 100,000 次免费请求额度计算，四人持续比赛合计约 6.9 小时就可能接近请求上限，两人约 13.8 小时；多个房间共享额度，按键变化会立即额外发送，实际还要扣除连接、心跳和其他请求。这只是容量估算，不是保证时长。它适合少量朋友偶尔玩，不能当作无限量公开联机服务。
 
 **本地开发。** 使用 Node.js 22 或更新版本，安装依赖后，npm run dev:cloudflare 启动 Cloudflare 本地环境，npm run build:cloudflare 生成网页资源，npm run test:cloudflare 验证 Cloudflare 房间协议。原来的启动联机.command 和 npm start 继续启动 Node 本地版本。scripts/prepare-upload.cjs 用于重新生成 deploy-upload，直接运行 node scripts/prepare-upload.cjs 即可；不修改备份目录。
 

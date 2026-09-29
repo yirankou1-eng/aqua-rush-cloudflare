@@ -20,7 +20,7 @@ function createRoomService(options={}){
     broadcastRoom(room);
   }
   function code(){const alphabet='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';let value;do{value=Array.from(crypto.getRandomValues(new Uint8Array(6)),v=>alphabet[v%alphabet.length]).join('');}while(rooms.has(value));return value;}
-  function snapshot(room){const state=room.engine.snapshot();room.members.forEach(m=>send(m.ws,{type:'state',phase:room.phase,remaining:Math.max(0,room.countdown||0),ack:m.appliedSeq||0,inputs:Object.fromEntries(room.members.map(p=>[p.slot,Date.now()-p.lastInput<500?p.input:{}])),state}));}
+  function snapshot(room){const state=room.engine.snapshot();room.members.forEach(m=>send(m.ws,{type:'state',phase:room.phase,remaining:Math.max(0,room.countdown||0),ack:m.appliedSeq||0,inputs:Object.fromEntries(room.members.map(p=>[p.slot,Date.now()-p.lastInput<1500?p.input:{}])),state}));}
   function join(ws,room,member){ws.room=room;ws.member=member;member.ws=ws;member.input={};member.lastInput=Date.now();send(ws,{type:'joined',code:room.code,slot:member.slot,token:member.token,map:room.map});broadcastRoom(room);if(room.engine)snapshot(room);}
   function attach(ws){
     startTimers();
@@ -75,7 +75,7 @@ function createRoomService(options={}){
       }
     });
   }
-  let ticks=0,last=performance.now(),accumulator=0;
+  let ticks=0,last=performance.now(),accumulator=0,lastBroadcast=0;
   let timer=null,heartbeat=null;
   function stopTimers(){clearInterval(timer);clearInterval(heartbeat);timer=heartbeat=null;}
   function startTimers(){
@@ -88,14 +88,16 @@ function createRoomService(options={}){
         if(!room.engine)continue;
         if(room.phase==='countdown'){room.countdown-=RaceCore.DT;if(room.countdown<=0){room.phase='racing';broadcastRoom(room);}}
         else if(room.phase==='racing'){
-          const inputs={};for(const m of room.members)inputs[m.slot]=Date.now()-m.lastInput<500?m.input:{};
+          const inputs={};for(const m of room.members)inputs[m.slot]=Date.now()-m.lastInput<1500?m.input:{};
           room.engine.step(inputs);
           for(const m of room.members)m.appliedSeq=m.seq;
           if(room.engine.boats.every(b=>b.finished)||room.engine.time>=15*60){room.phase='finished';broadcastRoom(room);}
         }
-        if(ticks%3===0)snapshot(room);
+
       }
     }
+    // Send the newest state at 10 Hz, never every intermediate catch-up step.
+    if(now-lastBroadcast>=100){lastBroadcast=now;for(const room of rooms.values())if(room.engine)snapshot(room);}
   },8);
   heartbeat=setInterval(()=>{for(const ws of clients){if(Date.now()-ws.lastSeen>45000)ws.terminate();}},10000);
   }

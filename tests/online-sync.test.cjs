@@ -9,8 +9,8 @@ function linearEngine(){
  return {boats:[boat],get time(){return time;},step(){time+=DT;x+=100*DT;},restore(s){time=s.time;x=s.boats[0].x;},snapshot(){return state(time);}};
 }
 function state(time){return {time,boats:[{x:time*100,y:0,z:0,heading:Math.PI/2,position:[time*100,0,0],rotation:[0,Math.PI/2,0]}]};}
-test('200–600 ms RTT and ordered delivery bursts cannot rewind the prediction clock or snap the displayed boat',()=>{
- for(const rtt of [200,400,600]){
+test('200–1000 ms RTT and ordered delivery bursts cannot rewind the prediction clock or snap the displayed boat',()=>{
+ for(const rtt of [200,400,600,1000]){
   const engine=linearEngine(),sync=Sync.create(engine,0);sync.setLatency(rtt);
   let previousTime=0,previousX=null,lastDelivery=0,index=0;const packets=[];
   for(let tick=0;tick<900;tick++){
@@ -34,7 +34,7 @@ test('low rendering frame rate advances by actual elapsed time instead of clampe
 test('authoritative corrections also move the camera pose smoothly; long gaps bound replay work',()=>{
  const engine=linearEngine(),sync=Sync.create(engine,0);sync.setLatency(200);sync.receive(state(1),0,'racing');sync.advance(16.7,{w:true});
  const before=sync.snapshot().boats[0];sync.receive(state(1.3),20,'racing');const after=sync.snapshot().boats[0];assert.equal(after.x,after.position[0]);assert(Math.abs(after.x-before.x)<1e-7);
- sync.advance(10000,{w:true});assert(engine.time<=1.3+.75);assert(Number.isFinite(sync.snapshot().boats[0].x));
+ sync.advance(10000,{w:true});assert(engine.time<=1.3+1.5);assert(Number.isFinite(sync.snapshot().boats[0].x));
 });
 
 test('real race snapshots with 300 ms latency keep visible correction continuous',()=>{
@@ -47,4 +47,25 @@ test('real race snapshots with 300 ms latency keep visible correction continuous
   sync.advance(now*1000,keys);
  }
  const b=sync.snapshot().boats[0];assert(received>50);assert(b.v>0);assert.equal(b.x,b.position[0]);assert.equal(b.z,b.position[2]);
+});
+
+for(const stall of [.35,1.1])test('remote interpolation stays within history through '+stall+' second stalls',()=>{
+ const sync=Sync.create(linearEngine(),0);sync.setLatency(1000);
+ const packets=[],states=[];let delivery=0,previous=null,maxJump=0,stopped=0,outside=0,samples=0;
+ for(let tick=0;tick<3600;tick++){
+  const now=tick*DT;
+  if(tick%6===0){delivery=Math.max(delivery,now+.5+(tick%180<20?stall:0));packets.push({at:delivery,state:state(now)});}
+  while(packets.length&&packets[0].at<=now){const p=packets.shift();states.push(p.state);while(states.length>2&&states[1].time<p.state.time-2)states.shift();sync.receive(p.state,now*1000,'racing');}
+  sync.advance(now*1000,{w:true});if(!states.length)continue;
+  const target=sync.remoteTime;let a=states[0],b=states.at(-1);
+  for(let i=1;i<states.length;i++)if(states[i].time>=target){a=states[i-1];b=states[i];break;}
+  const f=b.time===a.time?1:Math.max(0,Math.min(1,(target-a.time)/(b.time-a.time)));
+  const x=(a.time+(b.time-a.time)*f)*100;
+  if(tick>300){samples++;if(target<states[0].time-1e-6)outside++;if(previous!==null){maxJump=Math.max(maxJump,x-previous);if(Math.abs(x-previous)<1e-6)stopped++;assert(x>=previous-1e-6);}}
+  previous=x;
+ }
+ assert.equal(outside,0,'display clock fell outside snapshot history');
+ assert(maxJump<2.1,'interpolation teleported: '+maxJump+' m/frame');
+ assert(stopped/samples<.05,'remote boats froze for '+stopped+'/'+samples+' frames');
+ console.log('Remote jitter replay:',{maxJump,stopped,samples,outside});
 });

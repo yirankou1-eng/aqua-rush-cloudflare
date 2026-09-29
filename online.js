@@ -7,7 +7,9 @@ function mount(game){
   const $=id=>document.getElementById(id),params=new URLSearchParams(location.search);
   let ws=null,room=null,slot=0,token='',code='',engine=null,sync=null,phase='menu',seq=0,ack=0,pending=[],states=[];
   let connected=false,intentional=false,retryUntil=0,retryTimer=null,lastStateAt=0,ping=0,lastPing=0,ready=false;
-  let keepAlive=null;
+  let keepAlive=null,lastInputSent=0,lastInputKeys='';
+  let queuedState=null;
+  let reportAt=0,frameAt=0,maxFrameMs=0,maxPacketGapMs=0,packetCount=0,reportServerTime=0;
   let rendering=false,remaining=3.5,credentials=null,joinRequest=null;
   try{credentials=JSON.parse(sessionStorage.getItem('aqua-room')||'null');}catch{}
   const panel=document.createElement('div');panel.id='onlinePanel';panel.className='hidden';
@@ -99,27 +101,44 @@ function mount(game){
       return;
     }
     if(data.type==='state'&&engine){
-      phase=data.phase;remaining=data.remaining;lastStateAt=performance.now();ack=data.ack;
+      phase=data.phase;remaining=data.remaining;const arrived=performance.now();
+      if(lastStateAt)maxPacketGapMs=Math.max(maxPacketGapMs,arrived-lastStateAt);
+      packetCount++;lastStateAt=arrived;ack=data.ack;
       seq=Math.max(seq,ack);pending=pending.filter(item=>item.seq>ack);
-      states.push(data.state);while(states.length>8)states.shift();
-      sync.receive(data.state,lastStateAt,phase,data.inputs||{});
+      states.push(data.state);
+      while(states.length>2&&states[1].time<data.state.time-2)states.shift();
+      while(states.length>150)states.shift();
+      // Several reliable WebSocket messages can arrive together after a network stall.
+      // Keep their interpolation samples, but reconcile only the newest one per frame.
+      queuedState={data,arrived:lastStateAt};
       if(phase!=='racing')pending=[];
     }
   }
   function update(dt){
     if(!rendering||!engine)return;
     const now=performance.now();
+    if(queuedState){const packet=queuedState;queuedState=null;sync.receive(packet.data.state,packet.arrived,packet.data.phase,packet.data.inputs||{});}
+    if(frameAt)maxFrameMs=Math.max(maxFrameMs,now-frameAt);frameAt=now;
     if(connected&&now-lastPing>2000){send({type:'ping',time:Date.now()});lastPing=now;}
     const stale=!lastStateAt||now-lastStateAt>1500;
     if(phase!=='finished'&&connected)$('onlineConnection').textContent=stale?'Waiting for the server…':(phase==='countdown'?'Starting race · ':document.hidden?'Window in background · ':'Connected · ')+Math.round(ping)+' ms';
-    sync.advance(now,connected&&!stale?game.input():{},input=>{
-      if(!connected||stale)return;
-      pending.push({seq:++seq});
-      if(pending.length>120){disconnected('Connection timed out. Leave and try again.');pending=[];return;}
-      send({type:'input',seq,w:!!input.w,s:!!input.s,a:!!input.a,d:!!input.d});
-    });
+    const input=connected&&!stale?game.input():{};
+    const inputKey=[input.w,input.s,input.a,input.d].map(Boolean).join(',');
+    // Sending controls must not stop when prediction waits for a delayed snapshot.
+    // Send changes immediately and refresh held keys at 20 Hz, independent of physics ticks.
+    if(phase==='racing'&&connected&&(inputKey!==lastInputKeys||now-lastInputSent>=50)){
+      lastInputSent=now;lastInputKeys=inputKey;pending.push({seq:++seq});
+      if(pending.length>120){disconnected('Connection timed out. Leave and try again.');pending=[];}
+      else send({type:'input',seq,w:!!input.w,s:!!input.s,a:!!input.a,d:!!input.d});
+    }
+    sync.advance(now,input);
     if(!states.length)return;
     const latest=states.at(-1),target=sync.remoteTime;
+    if(now-reportAt>=1000){
+      const seconds=(now-reportAt)/1000;
+      badge.dataset.networkReport=JSON.stringify({version:'2026-09-30-jitter2',rttMs:Math.round(ping),maxFrameMs:Math.round(maxFrameMs),maxPacketGapMs:Math.round(maxPacketGapMs),packetsPerSecond:+(packetCount/seconds).toFixed(1),serverSpeed:+((latest.time-reportServerTime)/seconds).toFixed(2),bufferMs:Math.round((latest.time-target)*1000),snapshotAgeMs:Math.round(now-lastStateAt)});
+      reportAt=now;reportServerTime=latest.time;packetCount=0;maxFrameMs=maxPacketGapMs=0;
+    }
     let a=states[0],b=latest;for(let i=1;i<states.length;i++){if(states[i].time>=target){a=states[i-1];b=states[i];break;}}
     const alpha=b.time===a.time?1:Math.max(0,Math.min(1,(target-a.time)/(b.time-a.time)));
     const predicted=sync.snapshot();
