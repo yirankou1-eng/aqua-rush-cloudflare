@@ -20,7 +20,7 @@ function createRoomService(options={}){
     broadcastRoom(room);
   }
   function code(){const alphabet='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';let value;do{value=Array.from(crypto.getRandomValues(new Uint8Array(6)),v=>alphabet[v%alphabet.length]).join('');}while(rooms.has(value));return value;}
-  function snapshot(room){const state=room.engine.snapshot();room.members.forEach(m=>send(m.ws,{type:'state',phase:room.phase,remaining:Math.max(0,room.countdown||0),ack:m.seq,state}));}
+  function snapshot(room){const state=room.engine.snapshot();room.members.forEach(m=>send(m.ws,{type:'state',phase:room.phase,remaining:Math.max(0,room.countdown||0),ack:m.appliedSeq||0,inputs:Object.fromEntries(room.members.map(p=>[p.slot,Date.now()-p.lastInput<500?p.input:{}])),state}));}
   function join(ws,room,member){ws.room=room;ws.member=member;member.ws=ws;member.input={};member.lastInput=Date.now();send(ws,{type:'joined',code:room.code,slot:member.slot,token:member.token,map:room.map});broadcastRoom(room);if(room.engine)snapshot(room);}
   function attach(ws){
     startTimers();
@@ -58,7 +58,7 @@ function createRoomService(options={}){
           if(target.members.length>=4)return error(ws,'This room already has four players.');
         }
         const slot=[0,1,2,3].find(slot=>!target.members.some(m=>m.slot===slot));
-        const member={slot,name,token:Array.from(crypto.getRandomValues(new Uint8Array(24)),v=>v.toString(16).padStart(2,'0')).join(''),ready:false,seq:0,input:{},ws:null};target.members.push(member);return join(ws,target,member);
+        const member={slot,name,token:Array.from(crypto.getRandomValues(new Uint8Array(24)),v=>v.toString(16).padStart(2,'0')).join(''),ready:false,seq:0,appliedSeq:0,input:{},ws:null};target.members.push(member);return join(ws,target,member);
       }
       if(!room||!m)return error(ws,'Join a room first.');
       if(msg.type==='ready'&&room.phase==='lobby'){m.ready=msg.ready===true;return broadcastRoom(room);}
@@ -66,7 +66,7 @@ function createRoomService(options={}){
         if(m.slot!==room.host)return error(ws,'Only the host can start the race.');
         if(room.phase!=='lobby')return;
         if(room.members.length<2||room.members.some(m=>!m.ws||!m.ready))return error(ws,'At least two players must join, and everyone must be ready.');
-        room.engine=RaceCore.create(room.map);for(const member of room.members){room.engine.boats[member.slot].bot=false;member.seq=0;member.input={};}
+        room.engine=RaceCore.create(room.map);for(const member of room.members){room.engine.boats[member.slot].bot=false;member.seq=0;member.appliedSeq=0;member.input={};}
         room.phase='countdown';room.countdown=3.5;broadcastRoom(room);return snapshot(room);
       }
       if(msg.type==='input'&&(room.phase==='racing'||room.phase==='countdown')){
@@ -90,6 +90,7 @@ function createRoomService(options={}){
         else if(room.phase==='racing'){
           const inputs={};for(const m of room.members)inputs[m.slot]=Date.now()-m.lastInput<500?m.input:{};
           room.engine.step(inputs);
+          for(const m of room.members)m.appliedSeq=m.seq;
           if(room.engine.boats.every(b=>b.finished)||room.engine.time>=15*60){room.phase='finished';broadcastRoom(room);}
         }
         if(ticks%3===0)snapshot(room);

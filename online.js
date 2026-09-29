@@ -5,7 +5,7 @@ const COLORS=[0x1c7fd4,0xe03030,0xffa028,0x38c94f];
 const CSS_COLORS=['#59b6ff','#ef6969','#ffb454','#6ddd8a'];
 function mount(game){
   const $=id=>document.getElementById(id),params=new URLSearchParams(location.search);
-  let ws=null,room=null,slot=0,token='',code='',engine=null,phase='menu',seq=0,ack=0,pending=[],states=[],accumulator=0;
+  let ws=null,room=null,slot=0,token='',code='',engine=null,sync=null,phase='menu',seq=0,ack=0,pending=[],states=[];
   let connected=false,intentional=false,retryUntil=0,retryTimer=null,lastStateAt=0,ping=0,lastPing=0,ready=false;
   let keepAlive=null;
   let rendering=false,remaining=3.5,credentials=null,joinRequest=null;
@@ -44,7 +44,7 @@ function mount(game){
     const route=request.type==='create'?'create=1':'room='+encodeURIComponent(request.code);
     ws=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host+'/socket?'+route);
     const socket=ws;
-    socket.onopen=()=>{if(socket!==ws)return;connected=true;send(joinRequest);keepAlive=setInterval(()=>send({type:'ping',time:Date.now()}),10000);};
+    socket.onopen=()=>{if(socket!==ws)return;connected=true;send(joinRequest);send({type:'ping',time:Date.now()});keepAlive=setInterval(()=>send({type:'ping',time:Date.now()}),10000);};
     socket.onmessage=event=>{if(socket!==ws)return;let data;try{data=JSON.parse(event.data);}catch{return;}receive(data);};
     socket.onerror=()=>{};
     socket.onclose=()=>{
@@ -82,7 +82,7 @@ function mount(game){
   function receive(data){
     if(data.type==='error'){busy(false);message(data.message);if(rendering)disconnected(data.message);return;}
     if(data.type==='closed'){disconnected(data.message);return;}
-    if(data.type==='pong'){ping=Math.max(0,Date.now()-data.time);return;}
+    if(data.type==='pong'){const sample=Math.max(0,Date.now()-data.time);ping=ping?ping*.8+sample*.2:sample;if(sync)sync.setLatency(ping);return;}
     if(data.type==='joined'){
       busy(false);retryUntil=0;slot=data.slot;token=data.token;code=data.code;
       try{sessionStorage.setItem('aqua-room',JSON.stringify({code,token,map:data.map,name:name()}));}catch{}
@@ -93,7 +93,7 @@ function mount(game){
     if(data.type==='room'){
       room=data;phase=data.phase;
       if(phase==='lobby'){lobby();return;}
-      if(!rendering){rendering=true;game.begin(slot,COLORS);engine=RaceCore.create(game.map.id);seq=0;pending=[];states=[];}
+      if(!rendering){rendering=true;game.begin(slot,COLORS);engine=RaceCore.create(game.map.id);sync=OnlineSync.create(engine,slot);if(ping)sync.setLatency(ping);seq=0;pending=[];states=[];}
       panel.classList.add('hidden');badge.classList.remove('hidden');$('onlineCodeBadge').textContent='Room '+code+' · Boat '+(slot+1);
       if(phase==='finished')$('onlineConnection').textContent='Race complete · Leave to start a new room';
       return;
@@ -102,8 +102,8 @@ function mount(game){
       phase=data.phase;remaining=data.remaining;lastStateAt=performance.now();ack=data.ack;
       seq=Math.max(seq,ack);pending=pending.filter(item=>item.seq>ack);
       states.push(data.state);while(states.length>8)states.shift();
-      engine.restore(data.state);
-      if(phase==='racing')for(const item of pending)engine.step({[slot]:item.keys});else pending=[];
+      sync.receive(data.state,lastStateAt,phase,data.inputs||{});
+      if(phase!=='racing')pending=[];
     }
   }
   function update(dt){
@@ -112,15 +112,17 @@ function mount(game){
     if(connected&&now-lastPing>2000){send({type:'ping',time:Date.now()});lastPing=now;}
     const stale=!lastStateAt||now-lastStateAt>1500;
     if(phase!=='finished'&&connected)$('onlineConnection').textContent=stale?'Waiting for the server…':(phase==='countdown'?'Starting race · ':document.hidden?'Window in background · ':'Connected · ')+Math.round(ping)+' ms';
-    accumulator=Math.min(accumulator+dt,.2);
-    while(accumulator>=RaceCore.DT){accumulator-=RaceCore.DT;
-      if(phase==='racing'&&connected&&!stale){const input=game.input();const entry={seq:++seq,keys:input};pending.push(entry);if(pending.length>120){disconnected('Connection timed out. Leave and try again.');pending=[];break;}send({type:'input',seq,w:!!input.w,s:!!input.s,a:!!input.a,d:!!input.d});engine.step({[slot]:input});}
-    }
+    sync.advance(now,connected&&!stale?game.input():{},input=>{
+      if(!connected||stale)return;
+      pending.push({seq:++seq});
+      if(pending.length>120){disconnected('Connection timed out. Leave and try again.');pending=[];return;}
+      send({type:'input',seq,w:!!input.w,s:!!input.s,a:!!input.a,d:!!input.d});
+    });
     if(!states.length)return;
-    const latest=states.at(-1),target=latest.time-.08+Math.min(.1,(now-lastStateAt)/1000);
+    const latest=states.at(-1),target=sync.remoteTime;
     let a=states[0],b=latest;for(let i=1;i<states.length;i++){if(states[i].time>=target){a=states[i-1];b=states[i];break;}}
     const alpha=b.time===a.time?1:Math.max(0,Math.min(1,(target-a.time)/(b.time-a.time)));
-    const predicted=engine.snapshot();
+    const predicted=sync.snapshot();
     game.render({latest,predicted,a,b,alpha,slot,phase,remaining,room,dt,colors:CSS_COLORS});
   }
   addEventListener('blur',()=>game.clearKeys());
