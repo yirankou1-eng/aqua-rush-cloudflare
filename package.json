@@ -1,0 +1,24 @@
+{
+  "name": "aqua-rush-gp",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Aqua Rush GP with local and LAN multiplayer rooms",
+  "scripts": {
+    "start": "node server.cjs",
+    "test:online": "node --test tests/multiplayer.test.cjs",
+    "test:game": "node tests/game.test.cjs",
+    "build:cloudflare": "node scripts/build-cloudflare.cjs",
+    "dev:cloudflare": "npm run build:cloudflare && wrangler dev",
+    "deploy:cloudflare": "npm run build:cloudflare && wrangler deploy",
+    "test:cloudflare": "node scripts/build-cloudflare.cjs && node --test tests/cloudflare.test.cjs"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "ws": "^8.22.0"
+  },
+  "devDependencies": {
+    "wrangler": "^4.142.0"
+  }
+}
