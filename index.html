@@ -43,6 +43,13 @@
   #help{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);color:#bcd9ea;font-size:13px;
         background:rgba(4,20,34,.55);padding:8px 18px;border-radius:20px;pointer-events:none;
         border:1px solid rgba(140,200,240,.25)}
+  #pauseBtn{position:fixed;top:18px;right:20px;z-index:10010;border:1px solid #7cc9db;border-radius:22px;padding:10px 20px;background:#062536dd;color:#e4faff;font-family:inherit;font-weight:700;font-size:13px;cursor:pointer}
+  #pausePanel{position:fixed;inset:0;z-index:10020;display:flex;align-items:center;justify-content:center;background:#03101bb8;color:#eaf7ff}
+  .pause-card{text-align:center;padding:32px 46px;border:1px solid #587583;border-radius:18px;background:#092331f2;box-shadow:0 18px 65px #0005}
+  .pause-card h2{font-size:32px;letter-spacing:5px;margin:0 0 12px;color:#8af0ff}.pause-card p{color:#bcd9ea;font-size:14px}
+  #resumeRace{margin-top:12px;border:0;border-radius:26px;padding:12px 36px;background:#58d9eb;color:#04202c;font-size:15px;font-weight:800;letter-spacing:2px;cursor:pointer}
+  #pauseBtn:focus-visible,#resumeRace:focus-visible{outline:2px solid white;outline-offset:4px}
+  #duckFilm.paused-visual *{animation-play-state:paused!important}
   .hidden{display:none!important}
   @media(max-width:600px){
     #overlay h1{font-size:28px;letter-spacing:3px;text-align:center}
@@ -122,13 +129,15 @@
 </div>
 <div id="spd">0 <small>knots</small></div>
 <div id="flash"></div>
+<button id="pauseBtn" class="hidden" aria-controls="pausePanel" aria-expanded="false">PAUSE</button>
+<div id="pausePanel" class="hidden"><section class="pause-card" role="dialog" aria-modal="true" aria-labelledby="pauseTitle"><h2 id="pauseTitle">PAUSED</h2><p>The race is paused.</p><p>Press Esc or P to resume.</p><button id="resumeRace">RESUME</button></section></div>
 <div id="overlay"><h1 id="ovTitle">AQUA RUSH GP</h1><p id="ovSub">W / ↑ throttle · S / ↓ brake · A D / ← → steer · 2 laps</p><section id="mapSelect" aria-label="Select map"><div class="map-heading">SELECT MAP</div><div id="mapCards"></div><p id="mapDetails"></p></section><button id="startBtn">START</button><section id="results" class="hidden" aria-label="Race results">
   <div class="result-hero"><div><span class="result-label">YOUR PLACE</span><div id="resultPlace"></div></div><div><span class="result-label">FINISH TIME</span><div id="resultTime"></div><div id="resultMedal"></div></div></div>
   <div id="resultSummary"><table aria-label="Race standings"><thead><tr><th scope="col">POS</th><th scope="col">RACER</th><th scope="col">TIME</th><th scope="col">GAP</th></tr></thead><tbody id="resultRows"></tbody></table>
   <div class="result-stats"><div><span class="result-label">TOP SPEED</span><strong id="resultSpeed"></strong></div><div><span class="result-label">IMPACTS</span><strong id="resultHits"></strong></div></div>
   <p id="resultSectors"></p></div><section id="routePanel" class="hidden" aria-label="Live race map"><svg id="routeSvg" viewBox="0 0 600 370" role="img" aria-label="Course, finish line and live racer positions"></svg><div id="routeLegend"></div><p class="route-note">Live positions · Checkered marker = finish · Offset dots stay linked to their exact position</p></section><p id="resultStatus" aria-live="polite"></p><div class="result-actions"><button id="toggleRoute" aria-expanded="false" aria-controls="routePanel">LIVE MAP</button><button id="restartRace">RACE AGAIN</button></div>
 </section></div>
-<div id="help" class="hidden">W/↑ throttle · S/↓ brake · A/D steer · R restart — orange ramps JUMP, green arrows BOOST, 2 laps</div>
+<div id="help" class="hidden">W/↑ throttle · S/↓ brake · A/D steer · Esc/P pause · R restart — orange ramps JUMP, green arrows BOOST, 2 laps</div>
 <div id="duckFilm" role="status" aria-label="Duck transformation animation"><svg viewBox="0 0 360 280" aria-hidden="true"><ellipse cx="180" cy="241" rx="112" ry="13" fill="#edcf74"/><path d="M64 154Q28 102 45 94Q75 123 106 133" fill="#ffc800"/><ellipse cx="169" cy="174" rx="107" ry="69" fill="#ffd92e"/><circle cx="231" cy="95" r="58" fill="#ffe047"/><path d="M269 102Q345 102 325 122Q297 143 265 126" fill="#ff9227"/><circle cx="250" cy="79" r="9" fill="#3c2922"/><circle cx="253" cy="76" r="3" fill="white"/><ellipse cx="258" cy="99" rx="12" ry="7" fill="#ffba53"/><path class="duckWing" d="M111 164Q166 135 212 173Q183 230 125 197" fill="#efb813"/><path d="M52 45l5 13 14 5-14 5-5 14-5-14-14-5 14-5M305 190l5 13 14 5-14 5-5 14-5-14-14-5 14-5" fill="#fff"/></svg><p>QUACK! LET'S GO!</p></div>
 <script src="three.min.js"></script>
 <script src="dynamics.js?v=lap-checkpoints-1"></script>
@@ -1517,9 +1526,24 @@ function collideDuck(){
 }
 
 const keys = {};
+let paused=false;
+function canPause(){return !onlineSession?.active&&!onlineSession?.inRoom&&!onlineSession?.panelOpen&&!thumbnailMode&&!visualPreview&&!player.finished&&(started||countdown!==null);}
+function setPaused(value){
+  if(value&&!canPause())return;
+  paused=value;for(const key of Object.keys(keys))keys[key]=false;
+  $('pausePanel').classList[paused?'remove':'add']('hidden');
+  $('duckFilm').classList[paused?'add':'remove']('paused-visual');
+  $('pauseBtn').setAttribute('aria-expanded',String(paused));
+  (paused?$('resumeRace'):$('pauseBtn')).focus?.();
+}
+document.getElementById('pauseBtn').addEventListener('click',()=>setPaused(true));
+document.getElementById('resumeRace').addEventListener('click',()=>setPaused(false));
+document.getElementById('pausePanel').addEventListener('keydown',e=>{if(e.key==='Tab'){e.preventDefault();$('resumeRace').focus();}});
 addEventListener('keydown', e=>{
   if(e.target && /INPUT|TEXTAREA|SELECT/.test(e.target.tagName))return;
   if(onlineSession?.panelOpen)return;
+  if(['escape','p'].includes(e.key.toLowerCase())&&canPause()){e.preventDefault();if(!e.repeat)setPaused(!paused);return;}
+  if(paused){e.preventDefault();return;}
   keys[e.key.toLowerCase()]=true;
   if(['arrowup','arrowdown','arrowleft','arrowright',' '].includes(e.key.toLowerCase())) e.preventDefault();
   if(e.key.toLowerCase()==='r'){if(onlineSession?.active)onlineSession.leave();else location.reload();}
@@ -1859,7 +1883,7 @@ MapCatalog.maps.forEach(map=>$('map-'+map.id).addEventListener('click',()=>{
 $('mapDetails').textContent=activeMap.name+' · '+(activeMap.id==='playground'?'An irregular canyon circuit · No bridges':activeMap.scenery?'The original canyon circuit':'Neon skyline · Two building tunnels');
 $('ovSub').textContent='W / ↑ throttle · S / ↓ brake · A D / ← → steer';
 $('lap').textContent='LAP 1 / '+RACE_LAPS;
-$('help').textContent='W/↑ throttle · S/↓ brake · A/D steer · R restart — orange ramps JUMP, green arrows BOOST, '+RACE_LAPS+' laps';
+$('help').textContent='W/↑ throttle · S/↓ brake · A/D steer · Esc/P pause · R restart — orange ramps JUMP, green arrows BOOST, '+RACE_LAPS+' laps';
 
 // ================= race state =================
 let raceTime = 0, started = false, countdown = null, over = false;
@@ -2432,7 +2456,7 @@ function loadMapPreviews(){
   const queue=[...MapCatalog.maps];
   function next(){
     if(!queue.length)return;
-    const map=queue.shift(),image=$('preview-'+map.id),cacheKey='aqua-scene-preview-v35-'+map.id;
+    const map=queue.shift(),image=$('preview-'+map.id),cacheKey='aqua-scene-preview-v36-'+map.id;
     let cached;try{cached=sessionStorage.getItem(cacheKey);}catch(e){}
     if(cached){image.src=cached;image.style.opacity=1;next();return;}
     const iframe=document.createElement('iframe');
@@ -2555,6 +2579,8 @@ if(visualPreview){
 }
 let t = 0;
 function frame(dt){
+  $('pauseBtn').classList[canPause()?'remove':'add']('hidden');
+  if(paused)return;
   if(onlineSession?.active)onlineSession.update(dt);
   else {
   t += dt;
@@ -2674,6 +2700,15 @@ if(typeof AquaOnline!=='undefined'&&!thumbnailMode&&!visualPreview){
         if(!me){boat.t=official.prog;boat.curV=state.v;boat.px=boat.wx=position[0];boat.pz=boat.wz=position[2];boat.y2=state.y;boat.vy2=state.vy;}
         if(me&&(official.jumpCount||0)>previousJumps)lensSplash.trigger(18);
       });
+      // Local prediction and delayed remote interpolation represent different times.
+      // Separate only the displayed remote hulls; never send these cosmetic offsets to physics.
+      const displayed=allBoats.map((boat,i)=>({x:boat.mesh.position.x,y:boat.mesh.position.y,z:boat.mesh.position.z,heading:boat.mesh.rotation.y,duckForm:boat.duckForm,duckTransit:boat.duckTransit,finished:boat.finished,index:i}));
+      for(let pass=0;pass<4;pass++)for(let i=0;i<displayed.length;i++)for(let j=i+1;j<displayed.length;j++){
+        const a=displayed[i],b=displayed[j],hit=physics.boatContact(a,b);if(!hit)continue;
+        const wa=i===0?0:1,wb=j===0?0:1,shift=(hit.depth+.03)/(wa+wb);
+        a.x-=hit.nx*shift*wa;a.z-=hit.nz*shift*wa;b.x+=hit.nx*shift*wb;b.z+=hit.nz*shift*wb;
+      }
+      displayed.forEach((p,i)=>{if(i===0)return;const boat=allBoats[i];boat.mesh.position.x=boat.px=boat.wx=p.x;boat.mesh.position.z=boat.pz=boat.wz=p.z;});
       latest.rings.forEach((r,i)=>{const ring=swimRings[i];if(!ring)return;Object.assign(ring,r);ring.mesh.position.set(r.x,r.y,r.z);ring.mesh.rotation.x=Math.atan2(waterH(r.x,r.z+2,t)-waterH(r.x,r.z-2,t),4)*.55;ring.mesh.rotation.z=-Math.atan2(waterH(r.x+2,r.z,t)-waterH(r.x-2,r.z,t),4)*.55;});
       if(giantDuck){const d=giantDuck,parts=d.mesh.userData,k=latest.duckOpen;d.mesh.rotation.y=d.heading+(k?0:t*.16);d.mesh.position.y=physics.baseWaterHeight(d.p.x,d.p.z)+Math.sin(t*.8)*.25;parts.upper.rotation.x=-k*.32;parts.jaw.rotation.x=k*.5;parts.mouth.visible=parts.tongue.visible=k>.025;parts.mouth.scale.y=.008+k*.155;}
       $('duckFilm').classList[player.duckTransit&&player.duckAge>=.75&&player.duckAge<2?'add':'remove']('active');

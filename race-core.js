@@ -349,12 +349,12 @@ function updatePlayer(dt, t){
     return {w:Math.abs(delta)<.95||b.v<12,s:Math.abs(delta)>1.1&&b.v>20,a:steer>.035,d:steer<-.035};
   }
   function contacts(dt){
-    for(let i=0;i<boats.length;i++)for(let j=i+1;j<boats.length;j++){
-      const a=boats[i],b=boats[j];if(a.finished||b.finished||a.air||b.air||a.duckTransit||b.duckTransit)continue;
-      const dx=b.x-a.x,dz=b.z-a.z,heading=(a.heading+b.heading)/2;
-      const along=dx*Math.sin(heading)+dz*Math.cos(heading),across=dx*Math.cos(heading)-dz*Math.sin(heading),e=(along/13)**2+(across/6.5)**2;
-      if(e>=1)continue;const dist=Math.hypot(dx,dz),nx=dist>.001?dx/dist:1,nz=dist>.001?dz/dist:0,push=Math.min(3,(1-Math.sqrt(e))*4);
-      a.x-=nx*push;a.z-=nz*push;b.x+=nx*push;b.z+=nz*push;
+    // Resolve full hull penetration, including head-on and perpendicular impacts.
+    // Revisit pairs so a three-boat pile-up does not leave the first pair embedded.
+    for(let pass=0;pass<4;pass++)for(let i=0;i<boats.length;i++)for(let j=i+1;j<boats.length;j++){
+      const a=boats[i],b=boats[j],hit=physics.boatContact(a,b);if(!hit)continue;
+      const push=(hit.depth+.025)/2;
+      a.x-=hit.nx*push;a.z-=hit.nz*push;b.x+=hit.nx*push;b.z+=hit.nz*push;
       if(raceTime-(a.lastBump??-9)>.4){a.v*=.9;b.v*=.9;a.hits=(a.hits||0)+1;b.hits=(b.hits||0)+1;a.lastBump=b.lastBump=raceTime;}
     }
     for(let step=0;step<2;step++){

@@ -163,7 +163,30 @@
     }
     racer.lapCheckpoint=count;return false;
   }
-  const api={LAP_CHECKPOINTS,advanceLapCheckpoints,CHANNEL,channelField,baseWaterHeight,currentAlong,currentAcceleration,channelGLSL,waveHeight,spring,createWaterEntry,stepWaterEntry,chooseRoute,rampSample,featureDistance,hitFloat,stepFloat};
+  // Convex top-down footprint follows makeBoat's tapered bow and offset stern.
+  // Return the minimum translation taking b away from a; do not mutate either body.
+  function boatContact(a,b){
+    if(a.finished||b.finished||a.duckTransit||b.duckTransit||Math.abs((a.y||0)-(b.y||0))>4)return null;
+    if(Math.hypot(b.x-a.x,b.z-a.z)>32)return null;
+    function hull(body){
+      const points=body.duckForm?Array.from({length:12},(_,i)=>[Math.cos(i*Math.PI/6)*4.2,Math.sin(i*Math.PI/6)*4.2]):
+        [[-2.3,-6.9],[-2.6,-4.5],[-2.5,-1],[-2,3],[-1.15,6],[-.06,8.5],[.06,8.5],[1.15,6],[2,3],[2.5,-1],[2.6,-4.5],[2.3,-6.9]];
+      const sn=Math.sin(body.heading),cs=Math.cos(body.heading);
+      return points.map(([x,z])=>({x:body.x+x*cs+z*sn,z:body.z-x*sn+z*cs}));
+    }
+    const aa=hull(a),bb=hull(b);let best=null;
+    for(const points of [aa,bb])for(let i=0;i<points.length;i++){
+      const p=points[i],q=points[(i+1)%points.length],len=Math.hypot(q.x-p.x,q.z-p.z);
+      let nx=-(q.z-p.z)/len,nz=(q.x-p.x)/len;
+      const av=aa.map(p=>p.x*nx+p.z*nz),bv=bb.map(p=>p.x*nx+p.z*nz);
+      const plus=Math.max(...av)-Math.min(...bv),minus=Math.max(...bv)-Math.min(...av);
+      if(plus<=0||minus<=0)return null;
+      let depth=plus;if(minus<plus){depth=minus;nx=-nx;nz=-nz;}
+      if(!best||depth<best.depth)best={nx,nz,depth};
+    }
+    return best;
+  }
+  const api={boatContact,LAP_CHECKPOINTS,advanceLapCheckpoints,CHANNEL,channelField,baseWaterHeight,currentAlong,currentAcceleration,channelGLSL,waveHeight,spring,createWaterEntry,stepWaterEntry,chooseRoute,rampSample,featureDistance,hitFloat,stepFloat};
   return api;
   }
   const api={...create(),create};

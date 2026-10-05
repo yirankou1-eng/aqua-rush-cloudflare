@@ -190,3 +190,16 @@ const terrainDrive=test(`(()=>{
 assert(terrainDrive.downstream.speed>terrainDrive.upstream.speed);
 assert(terrainDrive.narrow.wall,'collision follows the local narrow bank, not the old maximum width');
 console.log('PASS: current acceleration direction and variable-width player collision.');
+
+// Pause the real single-player scene, including countdown, simulation and effects.
+test('onlineSession=null;player.finished=false;started=true;countdown=null;keys.w=true;setPaused(true)');
+assert.equal(test('paused'),true);assert.equal(test('keys.w'),false);
+const pausedState=test('JSON.stringify({t,raceTime,x:player.x,y:player.y,z:player.z,ai:ais.map(a=>[a.t,a.px,a.pz]),confettiAge})');
+test('window.__step(120)');
+assert.equal(test('JSON.stringify({t,raceTime,x:player.x,y:player.y,z:player.z,ai:ais.map(a=>[a.t,a.px,a.pz]),confettiAge})'),pausedState);
+const pausedTime=test('raceTime');test('setPaused(false);window.__step(1)');assert(test('raceTime')>pausedTime);
+test('started=false;countdown=3.5;setPaused(true);window.__step(60)');assert.equal(test('countdown'),3.5);
+test('setPaused(false);window.__step(1)');assert(test('countdown')<3.5);
+test('onlineSession={active:true};setPaused(true)');assert.equal(test('paused'),false,'multiplayer cannot be paused');
+test('onlineSession=null;started=false;countdown=null;setPaused(true)');assert.equal(test('paused'),false,'menu cannot be paused');
+console.log('PASS: single-player pause freezes clock, countdown, boats and effects, resumes, and excludes multiplayer.');
