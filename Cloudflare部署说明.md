@@ -23,3 +23,10 @@
 本次验证包括原联机模拟与启动器测试，以及实际 Cloudflare 本地运行环境中的四人容量、独立房间、至少两人且全部准备才能开赛、服务端位置校验、同步快照、AI 补位、房主离开、重连、空房清理、跨站连接拒绝和私有文件不可下载。浏览器也实际创建了六位码房间并检查英文界面。没有把本地测试结果当作公网延迟保证。
 
 Cloudflare 的构建字段依据官方说明：https://developers.cloudflare.com/workers/ci-cd/builds/configuration/ 。
+
+
+手机操作：主菜单的 CONTROLS 支持 AUTO、DESKTOP、MOBILE，会记住手动选择。AUTO 按触屏能力和屏幕条件判断，手机首次打开会显示设置面板。点击 ENABLE TILT & FULLSCREEN，在浏览器询问时允许运动／方向访问，再横持手机点击 CENTER STEERING 校准。右侧 FORWARD 长按前进，BRAKE / REVERSE 长按先刹车再倒车；倾斜越多转向越强。若无法取得传感器数据，左侧显示触屏转向按钮。单机比赛中打开控制设置会暂停比赛，联机设置不会暂停其他玩家。
+
+隐藏地址栏由浏览器决定，网页不能保证强制隐藏。支持全屏时点击 FULLSCREEN；若无效，在手机浏览器中选择“添加到主屏幕”，之后从桌面图标打开。iPhone 使用 Safari 的分享菜单，并在提供此选项时启用“作为网页 App 打开”。横屏锁定同样取决于浏览器，不能自动锁定时请手动横持并关闭系统竖屏锁定。此功能不提供离线游戏。
+
+更新部署时上传 deploy-upload 文件夹里面的全部内容到仓库根目录，保留其中的 scripts、tests、cloudflare 子目录；不要把 deploy-upload 文件夹本身再套在仓库根目录外。等待 Cloudflare 新部署成功后，在手机上重新打开 Production 的 HTTPS 地址。手机和电脑都应刷新到同一版本。

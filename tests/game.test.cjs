@@ -203,3 +203,14 @@ test('setPaused(false);window.__step(1)');assert(test('countdown')<3.5);
 test('onlineSession={active:true};setPaused(true)');assert.equal(test('paused'),false,'multiplayer cannot be paused');
 test('onlineSession=null;started=false;countdown=null;setPaused(true)');assert.equal(test('paused'),false,'menu cannot be paused');
 console.log('PASS: single-player pause freezes clock, countdown, boats and effects, resumes, and excludes multiplayer.');
+
+// The actual scene uses mobile analog input rather than stale keyboard keys.
+assert.equal(test(`(()=>{
+ onlineSession=null;started=true;countdown=null;player.finished=false;
+ mobileControls={mobile:true,panelOpen:false,read:()=>({w:true,s:false,steer:.35})};keys.a=true;
+ const p=curveAt(.23),tan=tangentAt(.23);
+ Object.assign(player,{x:p.x,z:p.z,prog:.23,v:20,air:false,onRamp:null,duckTransit:false,waterEntry:null,bonus:0,yawVel:0,heading:Math.atan2(tan.x,tan.z)});
+ updatePlayer(1/60,0);const actual=player.yawVel,expected=.35*3.6/60*(1-3.1/60);
+ mobileControls=null;clearKeyboard();return Math.abs(actual-expected)<1e-10;
+})()`),true);
+console.log('PASS: mobile analog steering reaches the single-player driving integration.');

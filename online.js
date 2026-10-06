@@ -123,13 +123,13 @@ function mount(game){
     const stale=!lastStateAt||now-lastStateAt>1500;
     if(phase!=='finished'&&connected)$('onlineConnection').textContent=stale?'Waiting for the server…':(phase==='countdown'?'Starting race · ':document.hidden?'Window in background · ':'Connected · ')+Math.round(ping)+' ms';
     const input=connected&&!stale?game.input():{};
-    const inputKey=[input.w,input.s,input.a,input.d].map(Boolean).join(',');
+    const inputKey=[input.w,input.s,input.a,input.d].map(Boolean).join(',')+':'+(input.steer??'keys');
     // Sending controls must not stop when prediction waits for a delayed snapshot.
     // Send changes immediately and refresh held keys at 20 Hz, independent of physics ticks.
     if(phase==='racing'&&connected&&(inputKey!==lastInputKeys||now-lastInputSent>=50)){
       lastInputSent=now;lastInputKeys=inputKey;pending.push({seq:++seq});
       if(pending.length>120){disconnected('Connection timed out. Leave and try again.');pending=[];}
-      else send({type:'input',seq,w:!!input.w,s:!!input.s,a:!!input.a,d:!!input.d});
+      else send({type:'input',seq,w:!!input.w,s:!!input.s,a:!!input.a,d:!!input.d,steer:input.steer});
     }
     sync.advance(now,input);
     if(!states.length)return;
@@ -145,7 +145,7 @@ function mount(game){
     game.render({latest,predicted,a,b,alpha,slot,phase,remaining,room,dt,colors:CSS_COLORS});
   }
   addEventListener('blur',()=>game.clearKeys());
-  document.addEventListener('visibilitychange',()=>{if(document.hidden){game.clearKeys();if(rendering&&phase==='racing')send({type:'input',seq:++seq,w:false,s:false,a:false,d:false});}});
+  document.addEventListener('visibilitychange',()=>{if(document.hidden){game.clearKeys();if(rendering&&phase==='racing')send({type:'input',seq:++seq,w:false,s:false,a:false,d:false,steer:0});}});
   const requested=params.get('room');
   if(requested){entry();$('joinCode').value=requested;
     if(credentials&&credentials.code===requested){$('onlineName').value=credentials.name||$('onlineName').value;connect({type:'join',code:requested,token:credentials.token,name:name()||'Player'});}

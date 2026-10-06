@@ -47,8 +47,9 @@ test('rooms: short codes, capacity, readiness, shared simulation, takeover, reco
  a.send({type:'start'});await a.wait(m=>m.type==='state'&&m.phase==='racing');
  const room=app.rooms.get(joined.code);assert.equal(room.engine.boats.filter(b=>b.bot).length,1);
  const initial=room.engine.boats[0].z;
- a.send({type:'input',seq:1,w:true});await delay(250);
+ a.send({type:'input',seq:1,w:true,steer:.35});await delay(250);
  assert(room.engine.boats[0].v>0);assert.notEqual(room.engine.boats[0].z,initial);
+ assert.equal(room.members[0].input.steer,.35);
  const snapA=await a.wait(m=>m.type==='state'&&m.ack===1),snapB=await b.wait(m=>m.type==='state'&&m.state.time===snapA.state.time);
  assert.deepEqual(snapA.state,snapB.state);
  e.send({type:'join',code:joined.code,name:'Late'});assert.match((await e.wait(m=>m.type==='error')).message,/already started/);

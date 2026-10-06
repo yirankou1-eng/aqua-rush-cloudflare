@@ -186,7 +186,8 @@
     }
     return best;
   }
-  const api={boatContact,LAP_CHECKPOINTS,advanceLapCheckpoints,CHANNEL,channelField,baseWaterHeight,currentAlong,currentAcceleration,channelGLSL,waveHeight,spring,createWaterEntry,stepWaterEntry,chooseRoute,rampSample,featureDistance,hitFloat,stepFloat};
+  function steeringInput(input){return Number.isFinite(input.steer)?Math.max(-1,Math.min(1,input.steer)):(input.a||input.arrowleft?1:0)-(input.d||input.arrowright?1:0);}
+  const api={steeringInput,boatContact,LAP_CHECKPOINTS,advanceLapCheckpoints,CHANNEL,channelField,baseWaterHeight,currentAlong,currentAcceleration,channelGLSL,waveHeight,spring,createWaterEntry,stepWaterEntry,chooseRoute,rampSample,featureDistance,hitFloat,stepFloat};
   return api;
   }
   const api={...create(),create};

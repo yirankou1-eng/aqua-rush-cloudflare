@@ -6,8 +6,8 @@ const os=require('node:os');
 const {WebSocketServer,WebSocket}=require('ws');
 const {createRoomService}=require('./room-service.cjs');
 const ROOT=__dirname;
-const PUBLIC=new Set(['index.html','three.min.js','dynamics.js','maps.js','city.js','screen-splash.js','race-core.js','online.js','online-sync.js','online.css']);
-const TYPES={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8'};
+const PUBLIC=new Set(['index.html','three.min.js','dynamics.js','maps.js','city.js','screen-splash.js','race-core.js','online.js','online-sync.js','online.css','mobile-controls.js','mobile-controls.css','manifest.webmanifest','app-icon.svg']);
+const TYPES={'.webmanifest':'application/manifest+json','.svg':'image/svg+xml','.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8'};
 function createServer(options={}){
   const service=createRoomService(),{rooms,clients}=service;
   const server=http.createServer((req,res)=>{

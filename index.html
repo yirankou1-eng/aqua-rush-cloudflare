@@ -2,7 +2,12 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#04121e">
+<link rel="manifest" href="manifest.webmanifest">
 <title>Aqua Rush GP — 3D Speedboat Racing</title>
 <style>
   html,body{margin:0;height:100%;overflow:hidden;background:#04121e;font-family:'Segoe UI',Arial,sans-serif}
@@ -118,6 +123,7 @@
   #overlay.results-mode h1{text-shadow:0 2px 8px #00131f}
 </style>
 <link rel="stylesheet" href="online.css">
+<link rel="stylesheet" href="mobile-controls.css">
 </head>
 <body>
 <div id="hud">
@@ -147,9 +153,10 @@
 <script src="race-core.js"></script>
 <script src="online-sync.js"></script>
 <script src="online.js"></script>
+<script src="mobile-controls.js"></script>
 <script>
 'use strict';
-let onlineSession=null;
+let onlineSession=null,mobileControls=null;
 const activeMap=MapCatalog.get(new URLSearchParams(location.search).get('map'));
 const RACE_LAPS=activeMap.laps;
 const NIGHT=!!activeMap.night;
@@ -170,7 +177,8 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = .92;
 renderer.shadowMap.enabled = false;
 document.body.appendChild(renderer.domElement);
-addEventListener('resize', ()=>{ camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth,innerHeight); });
+function resizeViewport(){const w=window.visualViewport?.width||innerWidth,h=window.visualViewport?.height||innerHeight;camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h);document.documentElement?.style?.setProperty('--game-height',h+'px');}
+addEventListener('resize',resizeViewport);window.visualViewport?.addEventListener('resize',resizeViewport);resizeViewport();
 
 const sun = new THREE.DirectionalLight(NIGHT?0xc0cdeb:DUSK?0xffc58a:0xfff4df, NIGHT?.55:DUSK?1.2:1.5);
 sun.position.set(NIGHT?-240:DUSK?-220:200, NIGHT?170:DUSK?95:400, NIGHT?380:DUSK?400:100);
@@ -1526,11 +1534,17 @@ function collideDuck(){
 }
 
 const keys = {};
+function clearKeyboard(){for(const k of Object.keys(keys))keys[k]=false;}
+function drivingInput(){
+  if(mobileControls?.panelOpen)return {};
+  if(mobileControls?.mobile)return mobileControls.read();
+  return {w:!!(keys.w||keys.arrowup),s:!!(keys.s||keys.arrowdown),a:!!(keys.a||keys.arrowleft),d:!!(keys.d||keys.arrowright)};
+}
 let paused=false;
 function canPause(){return !onlineSession?.active&&!onlineSession?.inRoom&&!onlineSession?.panelOpen&&!thumbnailMode&&!visualPreview&&!player.finished&&(started||countdown!==null);}
 function setPaused(value){
   if(value&&!canPause())return;
-  paused=value;for(const key of Object.keys(keys))keys[key]=false;
+  paused=value;clearKeyboard();mobileControls?.clear();
   $('pausePanel').classList[paused?'remove':'add']('hidden');
   $('duckFilm').classList[paused?'add':'remove']('paused-visual');
   $('pauseBtn').setAttribute('aria-expanded',String(paused));
@@ -1541,7 +1555,7 @@ document.getElementById('resumeRace').addEventListener('click',()=>setPaused(fal
 document.getElementById('pausePanel').addEventListener('keydown',e=>{if(e.key==='Tab'){e.preventDefault();$('resumeRace').focus();}});
 addEventListener('keydown', e=>{
   if(e.target && /INPUT|TEXTAREA|SELECT/.test(e.target.tagName))return;
-  if(onlineSession?.panelOpen)return;
+  if(onlineSession?.panelOpen||mobileControls?.panelOpen)return;
   if(['escape','p'].includes(e.key.toLowerCase())&&canPause()){e.preventDefault();if(!e.repeat)setPaused(!paused);return;}
   if(paused){e.preventDefault();return;}
   keys[e.key.toLowerCase()]=true;
@@ -1978,8 +1992,8 @@ function rideRamp(b,x,z,speed){
 
 function updatePlayer(dt, t){
   if(!started || player.finished || player.duckTransit) return;
-  const th = keys['arrowup']||keys['w'], br = keys['arrowdown']||keys['s'];
-  const st = (keys['arrowleft']||keys['a']?1:0) + (keys['arrowright']||keys['d']?-1:0);
+  const input=drivingInput(),th=input.w,br=input.s;
+  const st=BoatDynamics.steeringInput(input);
 
   const ground = waterH(player.x, player.z, t);
   const flow=physics.currentAlong(player.x,player.z,Math.sin(player.heading),Math.cos(player.heading));
@@ -2579,6 +2593,7 @@ if(visualPreview){
 }
 let t = 0;
 function frame(dt){
+  mobileControls?.tick();
   $('pauseBtn').classList[canPause()?'remove':'add']('hidden');
   if(paused)return;
   if(onlineSession?.active)onlineSession.update(dt);
@@ -2665,9 +2680,9 @@ window.__dbg = () => JSON.stringify({started, x:+player.x.toFixed(1), z:+player.
 // remote boats interpolate server snapshots, while this scene only renders them.
 if(typeof AquaOnline!=='undefined'&&!thumbnailMode&&!visualPreview){
   let slotOrder=[0,1,2,3];
-  const clearKeys=()=>{for(const k of Object.keys(keys))keys[k]=false;};
+  const clearKeys=()=>{clearKeyboard();mobileControls?.clear();};
   onlineSession=AquaOnline.mount({map:activeMap,clearKeys,
-    input:()=>({w:!!(keys.w||keys.arrowup),s:!!(keys.s||keys.arrowdown),a:!!(keys.a||keys.arrowleft),d:!!(keys.d||keys.arrowright)}),
+    input:drivingInput,
     begin(slot,colors){
       clearKeys();slotOrder=[slot,...[0,1,2,3].filter(i=>i!==slot)];
       allBoats.forEach((b,i)=>{scene.remove(b.mesh);b.mesh=makeBoat(colors[slotOrder[i]]);scene.add(b.mesh);b.netSlot=slotOrder[i];b.wakePrevious=null;});
@@ -2717,6 +2732,13 @@ if(typeof AquaOnline!=='undefined'&&!thumbnailMode&&!visualPreview){
   });
 }
 
+if(typeof MobileControls!=='undefined'&&!thumbnailMode&&!visualPreview){
+  let resumeAfterControls=false;
+  mobileControls=MobileControls.mount({clearKeys:clearKeyboard,
+    canControl:()=>!paused&&!player.finished&&(started||countdown!==null)&&!onlineSession?.panelOpen,
+    panelChanged(open){if(open){resumeAfterControls=!paused&&canPause();if(resumeAfterControls)setPaused(true);}else if(resumeAfterControls){resumeAfterControls=false;setPaused(false);}}
+  });
+}
 // init camera behind boat
 camera.position.set(player.x-Math.sin(player.heading)*24,waterH(player.x,player.z,0)+9,player.z-Math.cos(player.heading)*24);
 if(thumbnailMode)renderMapThumbnail();else{loop();loadMapPreviews();}

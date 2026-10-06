@@ -71,7 +71,7 @@ function createRoomService(options={}){
       }
       if(msg.type==='input'&&(room.phase==='racing'||room.phase==='countdown')){
         if(!Number.isSafeInteger(msg.seq)||msg.seq<=m.seq||msg.seq>m.seq+10000)return;
-        m.seq=msg.seq;m.input={w:msg.w===true,s:msg.s===true,a:msg.a===true,d:msg.d===true};m.lastInput=Date.now();return;
+        m.seq=msg.seq;m.input={w:msg.w===true,s:msg.s===true,a:msg.a===true,d:msg.d===true};if(Number.isFinite(msg.steer))m.input.steer=Math.max(-1,Math.min(1,msg.steer));m.lastInput=Date.now();return;
       }
     });
   }

@@ -127,7 +127,7 @@ function rideRamp(b,x,z,speed){
 function updatePlayer(dt, t){
   if(!started || player.finished || player.duckTransit) return;
   const th = keys['arrowup']||keys['w'], br = keys['arrowdown']||keys['s'];
-  const st = (keys['arrowleft']||keys['a']?1:0) + (keys['arrowright']||keys['d']?-1:0);
+  const st = physics.steeringInput(keys);
 
   const ground = waterH(player.x, player.z, t);
   const flow=physics.currentAlong(player.x,player.z,Math.sin(player.heading),Math.cos(player.heading));
