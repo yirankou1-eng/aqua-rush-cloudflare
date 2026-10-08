@@ -362,13 +362,17 @@ function updatePlayer(dt, t){
       for(const b of boats){if(b.air||b.finished||b.duckTransit||b.onRamp)continue;
         const body={x:b.x,z:b.z,heading:b.heading,radius:2.6,halfLength:4.8,mass:1,inertia:28,yaw:b.yawVel||0,vx:Math.sin(b.heading)*b.v+(b.floatVX||0),vz:Math.cos(b.heading)*b.v+(b.floatVZ||0)};
         let hit=false;for(const r of rings)if(physics.hitFloat(body,r)>0)hit=true;
-        if(hit){b.x=body.x;b.z=body.z;b.v=body.vx*Math.sin(b.heading)+body.vz*Math.cos(b.heading);b.floatVX=body.vx-Math.sin(b.heading)*b.v;b.floatVZ=body.vz-Math.cos(b.heading)*b.v;b.yawVel=body.yaw;}
+        if(hit||body.contact){b.x=body.x;b.z=body.z;b.v=body.vx*Math.sin(b.heading)+body.vz*Math.cos(b.heading);b.floatVX=body.vx-Math.sin(b.heading)*b.v;b.floatVZ=body.vz-Math.cos(b.heading)*b.v;b.yawVel=body.yaw;}
       }
       for(let i=0;i<rings.length;i++)for(let j=i+1;j<rings.length;j++){Object.assign(rings[i],{heading:0,halfLength:0,inertia:1,yaw:0});physics.hitFloat(rings[i],rings[j]);}
       for(const r of rings){r.progress=nearestT(r.x,r.z,r.progress);const p=curveAt(r.progress),tan=tangentAt(r.progress),lat=-(r.x-p.x)*tan.z+(r.z-p.z)*tan.x,limit=halfWidthAt(r.progress)-r.radius-.15;
         if(Math.abs(lat)>limit){const side=Math.sign(lat),excess=lat-side*limit;r.x+=tan.z*excess;r.z-=tan.x*excess;const out=(-r.vx*tan.z+r.vz*tan.x)*side;if(out>0){r.vx+=1.25*out*tan.z*side;r.vz-=1.25*out*tan.x*side;}}}
     }
     for(const r of rings){const s=physics.spring(r.y,r.vy,waterH(r.x,r.z,raceTime)+.3,dt,5,.8);r.y=s.value;r.vy=s.velocity;}
+    for(let pass=0;pass<4;pass++)for(let i=0;i<boats.length;i++)for(let j=i+1;j<boats.length;j++){
+      const a=boats[i],b=boats[j],hit=physics.boatContact(a,b);if(!hit)continue;const push=(hit.depth+.025)/2;
+      a.x-=hit.nx*push;a.z-=hit.nz*push;b.x+=hit.nx*push;b.z+=hit.nz*push;
+    }
     for(const b of boats){b.mesh.position.x=b.x;b.mesh.position.z=b.z;}
   }
   function step(inputs={}){

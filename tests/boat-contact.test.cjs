@@ -19,3 +19,16 @@ test('server resolves human-human and human-AI overlap using the same hulls',()=
   race.step();const hit=D.boatContact(a,b);assert(!hit||hit.depth<.03,'server left hulls intersecting');assert(a.hits>0);
  }
 });
+test('resting float overlap reports contact even without a velocity impulse',()=>{
+ const b={x:0,z:0,heading:0,halfLength:4.8,radius:2.6,mass:1,inertia:28,vx:0,vz:0,yaw:0},r={x:8,z:0,radius:8.8,mass:.11,vx:0,vz:0};
+ assert.equal(D.hitFloat(b,r),0);assert.equal(b.contact,true);assert.ok(b.x<0);assert.ok(r.x-b.x>=11.4);
+});
+test('display contacts retain separation without moving the local boat or authoritative snapshots',()=>{
+ const view=require('../online-sync.js').createContactView(D),boats=[boat(0,0),boat(2,0)],rings=[{x:8,y:0,z:0,radius:8.8}];
+ const source=JSON.stringify({boats,rings}),first=view.solve(boats,rings,1/60);
+ assert.equal(first.boats[0].x,0);assert.equal(D.boatContact(...first.boats),null);assert.equal(JSON.stringify({boats,rings}),source);
+ assert.ok(first.rings[0].x>8);
+ const clear=[boat(0,0),boat(20,0)],next=view.solve(clear,[{x:40,y:0,z:0,radius:8.8}],1/60);
+ assert.ok(next.boats[1].x>20,'separation offset must relax rather than disappear');
+ view.reset();assert.equal(view.solve(clear,[],1/60).boats[1].x,20);
+});

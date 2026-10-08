@@ -37,7 +37,7 @@ function mount(game){
   if(localFile){$('onlineLocalHelp').classList.remove('hidden');$('createRoom').disabled=$('joinRoom').disabled=true;}
   $('onlineMap').textContent='Room map: '+game.map.name+' (change it in the main menu)';
   function entry(){panel.classList.remove('hidden');$('onlineEntry').classList.remove('hidden');$('onlineLobby').classList.add('hidden');$('onlineTitle').textContent='RACE TOGETHER';message('');$('onlineName').focus();}
-  button.onclick=()=>{entry();if(location.protocol==='file:')message('Use the link above to open http://localhost:3210 after starting the server.');};
+  button.onclick=()=>game.beforePlay(()=>{entry();if(location.protocol==='file:')message('Use the link above to open http://localhost:3210 after starting the server.');});
   function busy(value){$('createRoom').disabled=$('joinRoom').disabled=value;}
   function connect(request){
     if(!['http:','https:'].includes(location.protocol)){message('Open http://localhost:3210 to create or join a room.');return;}

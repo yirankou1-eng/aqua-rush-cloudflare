@@ -126,6 +126,7 @@
     const cx=boat.x+fx*along,cz=boat.z+fz*along;
     const dx=ring.x-cx,dz=ring.z-cz,d=Math.hypot(dx,dz),radius=boat.radius+ring.radius;
     if(d>=radius)return 0;
+    boat.contact=true;
     const nx=d>1e-8?dx/d:Math.cos(boat.heading),nz=d>1e-8?dz/d:-Math.sin(boat.heading);
     const lever=along*(fz*nx-fx*nz),invB=1/boat.mass,invR=1/ring.mass;
     const closing=(boat.vx-ring.vx)*nx+(boat.vz-ring.vz)*nz+(boat.yaw||0)*lever;

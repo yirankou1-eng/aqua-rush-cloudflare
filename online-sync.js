@@ -50,5 +50,40 @@ function create(engine,slot){
   }
   return {receive,advance,snapshot,setLatency,get remoteTime(){return remoteTime;},get time(){return clock;}};
 }
-const api={create};if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.OnlineSync=api;
+// Display-only contacts share a timeline for remote boats and floats. Retained
+// separation offsets relax over time rather than disappearing on the next frame.
+function createContactView(physics){
+  let boatOffsets=[],ringOffsets=[];
+  function reset(){boatOffsets=[];ringOffsets=[];}
+  function solve(boats,rings,dt){
+    const decay=Math.exp(-Math.min(Math.max(dt,0),.25)/.22);
+    const baseBoats=boats.map(b=>({...b})),baseRings=rings.map(r=>({...r}));
+    boats=boats.map((b,i)=>({...b,x:b.x+(i?boatOffsets[i]?.x||0:0)*decay,z:b.z+(i?boatOffsets[i]?.z||0:0)*decay}));
+    rings=rings.map((r,i)=>({...r,x:r.x+(ringOffsets[i]?.x||0)*decay,z:r.z+(ringOffsets[i]?.z||0)*decay}));
+    for(let pass=0;pass<6;pass++){
+      for(let i=0;i<boats.length;i++)for(let j=i+1;j<boats.length;j++){
+        const a=boats[i],b=boats[j],hit=physics.boatContact(a,b);if(!hit)continue;
+        const wa=i===0?0:1,shift=(hit.depth+.03)/(wa+1);
+        a.x-=hit.nx*shift*wa;a.z-=hit.nz*shift*wa;b.x+=hit.nx*shift;b.z+=hit.nz*shift;
+      }
+      for(const boat of boats){
+        if(boat.air||boat.onRamp||boat.duckTransit||boat.finished)continue;
+        for(const ring of rings){
+          if(Math.abs(boat.y-ring.y)>4)continue;
+          const fx=Math.sin(boat.heading),fz=Math.cos(boat.heading),along=clamp((ring.x-boat.x)*fx+(ring.z-boat.z)*fz,-4.8,4.8);
+          const dx=ring.x-boat.x-fx*along,dz=ring.z-boat.z-fz*along,d=Math.hypot(dx,dz),gap=(ring.radius||8.8)+2.6-d;
+          if(gap<=0)continue;
+          const nx=d>1e-8?dx/d:Math.cos(boat.heading),nz=d>1e-8?dz/d:-Math.sin(boat.heading);
+          ring.x+=nx*(gap+.02);ring.z+=nz*(gap+.02);
+        }
+      }
+    }
+    boatOffsets=boats.map((b,i)=>({x:b.x-baseBoats[i].x,z:b.z-baseBoats[i].z}));
+    ringOffsets=rings.map((r,i)=>({x:r.x-baseRings[i].x,z:r.z-baseRings[i].z}));
+    return {boats,rings};
+  }
+  return {solve,reset};
+}
+
+const api={create,createContactView};if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.OnlineSync=api;
 })(typeof window!=='undefined'?window:globalThis);

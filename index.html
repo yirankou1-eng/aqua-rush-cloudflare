@@ -136,7 +136,7 @@
 <div id="spd">0 <small>knots</small></div>
 <div id="flash"></div>
 <button id="pauseBtn" class="hidden" aria-controls="pausePanel" aria-expanded="false">PAUSE</button>
-<div id="pausePanel" class="hidden"><section class="pause-card" role="dialog" aria-modal="true" aria-labelledby="pauseTitle"><h2 id="pauseTitle">PAUSED</h2><p>The race is paused.</p><p>Press Esc or P to resume.</p><button id="resumeRace">RESUME</button></section></div>
+<div id="pausePanel" class="hidden"><section class="pause-card" role="dialog" aria-modal="true" aria-labelledby="pauseTitle"><h2 id="pauseTitle">PAUSED</h2><p>The race is paused.</p><p>Press Esc or P to resume.</p><button id="resumeRace">RESUME</button><button id="returnToMenu">MAIN MENU / CHANGE MAP</button><p>Returning to the menu ends this race.</p></section></div>
 <div id="overlay"><h1 id="ovTitle">AQUA RUSH GP</h1><p id="ovSub">W / ↑ throttle · S / ↓ brake · A D / ← → steer · 2 laps</p><section id="mapSelect" aria-label="Select map"><div class="map-heading">SELECT MAP</div><div id="mapCards"></div><p id="mapDetails"></p></section><button id="startBtn">START</button><section id="results" class="hidden" aria-label="Race results">
   <div class="result-hero"><div><span class="result-label">YOUR PLACE</span><div id="resultPlace"></div></div><div><span class="result-label">FINISH TIME</span><div id="resultTime"></div><div id="resultMedal"></div></div></div>
   <div id="resultSummary"><table aria-label="Race standings"><thead><tr><th scope="col">POS</th><th scope="col">RACER</th><th scope="col">TIME</th><th scope="col">GAP</th></tr></thead><tbody id="resultRows"></tbody></table>
@@ -1102,7 +1102,7 @@ function updateSwimRings(dt,now){
     }
   }
   for(const b of bodies){
-    if(!b.hit)continue;
+    if(!b.hit&&!b.contact)continue;
     const boat=b.owner;
     if(b.human){
       boat.x=b.x;boat.z=b.z;boat.v=b.vx*Math.sin(b.heading)+b.vz*Math.cos(b.heading);
@@ -1552,7 +1552,8 @@ function setPaused(value){
 }
 document.getElementById('pauseBtn').addEventListener('click',()=>setPaused(true));
 document.getElementById('resumeRace').addEventListener('click',()=>setPaused(false));
-document.getElementById('pausePanel').addEventListener('keydown',e=>{if(e.key==='Tab'){e.preventDefault();$('resumeRace').focus();}});
+document.getElementById('returnToMenu').addEventListener('click',()=>{if(!paused||!canPause())return;const url=new URL(location.href);url.searchParams.delete('room');location.href=url.href;});
+document.getElementById('pausePanel').addEventListener('keydown',e=>{if(e.key==='Tab'){const first=$('resumeRace'),last=$('returnToMenu');if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}}});
 addEventListener('keydown', e=>{
   if(e.target && /INPUT|TEXTAREA|SELECT/.test(e.target.tagName))return;
   if(onlineSession?.panelOpen||mobileControls?.panelOpen)return;
@@ -1906,9 +1907,10 @@ let resultsShown=false,resultSignature='';
 let routeOpen=false,routeProjection=null,lastRouteUpdate=-Infinity;
 $('toggleRoute').addEventListener('click',toggleRouteMap);
 $('restartRace').addEventListener('click',()=>onlineSession?.active?onlineSession.leave():location.reload());
-$('startBtn').addEventListener('click', ()=>{
+function startSingleRace(){
   if(countdown===null && !started){ if(document.getElementById('onlineBtn'))$('onlineBtn').classList.add('hidden'); countdown = 3.5; $('mapSelect').classList.add('hidden'); $('startBtn').style.display='none'; $('ovTitle').textContent='3'; }
-});
+}
+$('startBtn').addEventListener('click',()=>mobileControls?mobileControls.beforePlay(startSingleRace):startSingleRace());
 const clock = new THREE.Clock();
 const lensSplash=new ScreenSplash(document);
 
@@ -2680,11 +2682,12 @@ window.__dbg = () => JSON.stringify({started, x:+player.x.toFixed(1), z:+player.
 // remote boats interpolate server snapshots, while this scene only renders them.
 if(typeof AquaOnline!=='undefined'&&!thumbnailMode&&!visualPreview){
   let slotOrder=[0,1,2,3];
+  const contactView=OnlineSync.createContactView(physics);
   const clearKeys=()=>{clearKeyboard();mobileControls?.clear();};
-  onlineSession=AquaOnline.mount({map:activeMap,clearKeys,
+  onlineSession=AquaOnline.mount({map:activeMap,clearKeys,beforePlay:next=>mobileControls?mobileControls.beforePlay(next):next(),
     input:drivingInput,
     begin(slot,colors){
-      clearKeys();slotOrder=[slot,...[0,1,2,3].filter(i=>i!==slot)];
+      clearKeys();contactView.reset();slotOrder=[slot,...[0,1,2,3].filter(i=>i!==slot)];
       allBoats.forEach((b,i)=>{scene.remove(b.mesh);b.mesh=makeBoat(colors[slotOrder[i]]);scene.add(b.mesh);b.netSlot=slotOrder[i];b.wakePrevious=null;});
       $('mapSelect').classList.add('hidden');$('startBtn').classList.add('hidden');$('onlineBtn').classList.add('hidden');
       $('ovSub').textContent='Synchronized start';$('restartRace').textContent='Leave race';
@@ -2715,16 +2718,12 @@ if(typeof AquaOnline!=='undefined'&&!thumbnailMode&&!visualPreview){
         if(!me){boat.t=official.prog;boat.curV=state.v;boat.px=boat.wx=position[0];boat.pz=boat.wz=position[2];boat.y2=state.y;boat.vy2=state.vy;}
         if(me&&(official.jumpCount||0)>previousJumps)lensSplash.trigger(18);
       });
-      // Local prediction and delayed remote interpolation represent different times.
-      // Separate only the displayed remote hulls; never send these cosmetic offsets to physics.
-      const displayed=allBoats.map((boat,i)=>({x:boat.mesh.position.x,y:boat.mesh.position.y,z:boat.mesh.position.z,heading:boat.mesh.rotation.y,duckForm:boat.duckForm,duckTransit:boat.duckTransit,finished:boat.finished,index:i}));
-      for(let pass=0;pass<4;pass++)for(let i=0;i<displayed.length;i++)for(let j=i+1;j<displayed.length;j++){
-        const a=displayed[i],b=displayed[j],hit=physics.boatContact(a,b);if(!hit)continue;
-        const wa=i===0?0:1,wb=j===0?0:1,shift=(hit.depth+.03)/(wa+wb);
-        a.x-=hit.nx*shift*wa;a.z-=hit.nz*shift*wa;b.x+=hit.nx*shift*wb;b.z+=hit.nz*shift*wb;
-      }
-      displayed.forEach((p,i)=>{if(i===0)return;const boat=allBoats[i];boat.mesh.position.x=boat.px=boat.wx=p.x;boat.mesh.position.z=boat.pz=boat.wz=p.z;});
-      latest.rings.forEach((r,i)=>{const ring=swimRings[i];if(!ring)return;Object.assign(ring,r);ring.mesh.position.set(r.x,r.y,r.z);ring.mesh.rotation.x=Math.atan2(waterH(r.x,r.z+2,t)-waterH(r.x,r.z-2,t),4)*.55;ring.mesh.rotation.z=-Math.atan2(waterH(r.x+2,r.z,t)-waterH(r.x-2,r.z,t),4)*.55;});
+      const displayed=allBoats.map(boat=>({x:boat.mesh.position.x,y:boat.mesh.position.y,z:boat.mesh.position.z,heading:boat.mesh.rotation.y,air:boat.air,onRamp:boat.onRamp,duckForm:boat.duckForm,duckTransit:boat.duckTransit,finished:boat.finished}));
+      // Rings use the same buffered samples as remote boats, never raw packet jumps.
+      const ringTargets=a.rings.map((r,i)=>({...r,x:r.x+(b.rings[i].x-r.x)*alpha,y:r.y+(b.rings[i].y-r.y)*alpha,z:r.z+(b.rings[i].z-r.z)*alpha}));
+      const view=contactView.solve(displayed,ringTargets,dt);
+      view.boats.forEach((p,i)=>{if(i===0)return;const boat=allBoats[i];boat.mesh.position.x=boat.px=boat.wx=p.x;boat.mesh.position.z=boat.pz=boat.wz=p.z;});
+      view.rings.forEach((r,i)=>{const ring=swimRings[i];if(!ring)return;Object.assign(ring,r);ring.mesh.position.set(r.x,r.y,r.z);ring.mesh.rotation.x=Math.atan2(waterH(r.x,r.z+2,t)-waterH(r.x,r.z-2,t),4)*.55;ring.mesh.rotation.z=-Math.atan2(waterH(r.x+2,r.z,t)-waterH(r.x-2,r.z,t),4)*.55;});
       if(giantDuck){const d=giantDuck,parts=d.mesh.userData,k=latest.duckOpen;d.mesh.rotation.y=d.heading+(k?0:t*.16);d.mesh.position.y=physics.baseWaterHeight(d.p.x,d.p.z)+Math.sin(t*.8)*.25;parts.upper.rotation.x=-k*.32;parts.jaw.rotation.x=k*.5;parts.mouth.visible=parts.tongue.visible=k>.025;parts.mouth.scale.y=.008+k*.155;}
       $('duckFilm').classList[player.duckTransit&&player.duckAge>=.75&&player.duckAge<2?'add':'remove']('active');
       if(phase==='finished'&&!player.finished){$('help').classList.remove('hidden');$('help').textContent='Race complete · Select Leave race in the top right';}
