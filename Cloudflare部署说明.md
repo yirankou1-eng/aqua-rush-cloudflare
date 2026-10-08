@@ -27,7 +27,7 @@ Cloudflare 的构建字段依据官方说明：https://developers.cloudflare.com
 
 手机操作：先选择地图，再点击 START 或 MULTIPLAYER，进入 DRIVING SETTINGS。设备模式支持 AUTO、DESKTOP、MOBILE，会记住手动选择；换地图时不会提前弹出权限面板。点击 ENABLE TILT & FULLSCREEN，在浏览器询问时允许运动／方向访问，再横持手机点击 CENTER STEERING 校准。收到传感器数据后按钮才会亮起并显示 TILT ENABLED。右侧 FORWARD 长按前进，BRAKE / REVERSE 长按先刹车再倒车。未启用倾斜也可点击 CONTINUE WITH TOUCH BUTTONS，使用左侧触屏转向按钮。比赛中的 DRIVING SETTINGS 用于修改驾驶方式，RECENTER TILT 把当前手机倾角设为直行方向，点击后显示校准提示。单机中打开设置会暂停比赛，联机中不会暂停其他玩家。
 
-单机 PAUSE 菜单新增 MAIN MENU / CHANGE MAP，点击会结束当前比赛并回到地图选择。泳圈显示与远端船只改用同一组平滑位置，碰撞分离偏移逐步恢复；同步延迟仍可能造成短暂接触误差。
+单机 PAUSE 菜单新增 MAIN MENU / CHANGE MAP，点击会结束当前比赛并回到地图选择。泳圈现在与本机船使用同一套预测物理，服务器校正会平滑显示，不再通过画面避让直接挪动泳圈。联机已接入落水与碰撞水花、镜头水滴、震动和驾驶提示，详细检查及仍有的差异见 ONLINE-INTERACTIONS.md。同步延迟仍可能造成短暂接触误差。
 
 隐藏地址栏由浏览器决定，网页不能保证强制隐藏。支持全屏时点击 FULLSCREEN；若无效，在手机浏览器中选择“添加到主屏幕”，之后从桌面图标打开。iPhone 使用 Safari 的分享菜单，并在提供此选项时启用“作为网页 App 打开”。横屏锁定同样取决于浏览器，不能自动锁定时请手动横持并关闭系统竖屏锁定。此功能不提供离线游戏。
 

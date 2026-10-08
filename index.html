@@ -2598,12 +2598,12 @@ function frame(dt){
   mobileControls?.tick();
   $('pauseBtn').classList[canPause()?'remove':'add']('hidden');
   if(paused)return;
+  shake = Math.max(0, shake - 2.6*dt);
   if(onlineSession?.active)onlineSession.update(dt);
   else {
   t += dt;
   updateCountdown(dt);
   if(started && !allBoats.every(b=>b.finished)) raceTime += dt;
-  shake = Math.max(0, shake - 2.6*dt);
   if(player.finished) finT += dt;
   if(visualPreview){
     keys.w=true;
@@ -2682,12 +2682,12 @@ window.__dbg = () => JSON.stringify({started, x:+player.x.toFixed(1), z:+player.
 // remote boats interpolate server snapshots, while this scene only renders them.
 if(typeof AquaOnline!=='undefined'&&!thumbnailMode&&!visualPreview){
   let slotOrder=[0,1,2,3];
-  const contactView=OnlineSync.createContactView(physics);
+  const contactView=OnlineSync.createContactView(physics),feedback=OnlineSync.createFeedback();
   const clearKeys=()=>{clearKeyboard();mobileControls?.clear();};
   onlineSession=AquaOnline.mount({map:activeMap,clearKeys,beforePlay:next=>mobileControls?mobileControls.beforePlay(next):next(),
     input:drivingInput,
     begin(slot,colors){
-      clearKeys();contactView.reset();slotOrder=[slot,...[0,1,2,3].filter(i=>i!==slot)];
+      clearKeys();contactView.reset();feedback.reset();slotOrder=[slot,...[0,1,2,3].filter(i=>i!==slot)];
       allBoats.forEach((b,i)=>{scene.remove(b.mesh);b.mesh=makeBoat(colors[slotOrder[i]]);scene.add(b.mesh);b.netSlot=slotOrder[i];b.wakePrevious=null;});
       $('mapSelect').classList.add('hidden');$('startBtn').classList.add('hidden');$('onlineBtn').classList.add('hidden');
       $('ovSub').textContent='Synchronized start';$('restartRace').textContent='Leave race';
@@ -2702,7 +2702,6 @@ if(typeof AquaOnline!=='undefined'&&!thumbnailMode&&!visualPreview){
       allBoats.forEach((boat,i)=>{
         const id=slotOrder[i],official=latest.boats[id],state=id===slot?predicted.boats[id]:official;
         const member=room.seats[id],me=id===slot;
-        const previousJumps=boat.jumpCount||0;
         for(const [key,value] of Object.entries(state))if(!['id','position','rotation','onRamp','bot'].includes(key))boat[key]=value;
         // Results and checkpoints always come from the server, never prediction.
         for(const key of ['lap','prog','finished','finishTime','finishRank','secBest','sec','secStart','secLast','secLastIdx'])boat[key]=official[key];
@@ -2716,11 +2715,22 @@ if(typeof AquaOnline!=='undefined'&&!thumbnailMode&&!visualPreview){
         boat.mesh.rotation.set(...rotation,'YXZ');boat.netPlaced=true;
         boat.mesh.visible=!(state.duckTransit&&state.duckAge>=.75&&state.duckAge<2);
         if(!me){boat.t=official.prog;boat.curV=state.v;boat.px=boat.wx=position[0];boat.pz=boat.wz=position[2];boat.y2=state.y;boat.vy2=state.vy;}
-        if(me&&(official.jumpCount||0)>previousJumps)lensSplash.trigger(18);
+        if(me)shake=Math.max(shake,state.shake||0);
+        const feedbackState=me?state:(alpha<1?a.boats[id]:b.boats[id]);
+        const events=feedback.take(feedbackState,me?predicted.time:a.time+(b.time-a.time)*alpha);
+        if(me)events.push(...feedback.take(official,latest.time));
+        for(const event of events){
+          if(event.type==='splash')bigSplash(event.x,event.y,event.z,event.power);
+          if(event.type==='landing'){bigSplash(event.x,event.y,event.z,event.impact*.55);if(me)lensSplash.trigger(event.impact);}
+          if(event.type==='message'){
+            if(me)flash(event.text);
+            if(event.text==='BOOST!')for(let n=0;n<8;n++)splash.spawn(boat.mesh.position.x,waterH(boat.mesh.position.x,boat.mesh.position.z,t)+.5,boat.mesh.position.z,-Math.sin(boat.heading)*boat.v*.3+(Math.random()-.5)*4,2+Math.random()*3,-Math.cos(boat.heading)*boat.v*.3+(Math.random()-.5)*4,.5);
+          }
+        }
       });
       const displayed=allBoats.map(boat=>({x:boat.mesh.position.x,y:boat.mesh.position.y,z:boat.mesh.position.z,heading:boat.mesh.rotation.y,air:boat.air,onRamp:boat.onRamp,duckForm:boat.duckForm,duckTransit:boat.duckTransit,finished:boat.finished}));
-      // Rings use the same buffered samples as remote boats, never raw packet jumps.
-      const ringTargets=a.rings.map((r,i)=>({...r,x:r.x+(b.rings[i].x-r.x)*alpha,y:r.y+(b.rings[i].y-r.y)*alpha,z:r.z+(b.rings[i].z-r.z)*alpha}));
+      // Floats share the local prediction clock so contact uses real mass and velocity.
+      const ringTargets=predicted.rings;
       const view=contactView.solve(displayed,ringTargets,dt);
       view.boats.forEach((p,i)=>{if(i===0)return;const boat=allBoats[i];boat.mesh.position.x=boat.px=boat.wx=p.x;boat.mesh.position.z=boat.pz=boat.wz=p.z;});
       view.rings.forEach((r,i)=>{const ring=swimRings[i];if(!ring)return;Object.assign(ring,r);ring.mesh.position.set(r.x,r.y,r.z);ring.mesh.rotation.x=Math.atan2(waterH(r.x,r.z+2,t)-waterH(r.x,r.z-2,t),4)*.55;ring.mesh.rotation.z=-Math.atan2(waterH(r.x+2,r.z,t)-waterH(r.x-2,r.z,t),4)*.55;});

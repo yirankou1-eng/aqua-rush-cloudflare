@@ -214,3 +214,21 @@ assert.equal(test(`(()=>{
  mobileControls=null;clearKeyboard();return Math.abs(actual-expected)<1e-10;
 })()`),true);
 console.log('PASS: mobile analog steering reaches the single-player driving integration.');
+
+// Drive the real online rendering adapter: predicted landing must produce the
+// same particle and lens systems, and replay must not trigger them a second time.
+ctx.OnlineSync=require('../online-sync.js');let onlineAdapter;
+ctx.AquaOnline={mount(adapter){onlineAdapter=adapter;return {active:true,panelOpen:false};}};
+const onlineStart=html.indexOf("if(typeof AquaOnline!=='undefined'");
+const onlineEnd=html.indexOf("if(typeof MobileControls!=='undefined'",onlineStart);
+test(html.slice(onlineStart,onlineEnd));
+onlineAdapter.begin(0,[0x1c7fd4,0xe03030,0xffa028,0x38c94f]);
+const onlineState=require('../race-core.js').create('classic').snapshot();
+onlineState.boats[0].feedback={landing:{count:1,time:0,x:onlineState.boats[0].x,y:onlineState.boats[0].y,z:onlineState.boats[0].z,impact:20},message:{count:1,time:0,text:'BOOST!'}};
+onlineState.boats[0].shake=.4;
+test('window.effectCount=0;window.originalSpawn=splash.spawn;splash.spawn=(...args)=>{window.effectCount++;window.originalSpawn(...args);};lensSplash.active=false;shake=0;');
+const packet={latest:onlineState,predicted:onlineState,a:onlineState,b:onlineState,alpha:1,slot:0,phase:'racing',remaining:0,room:{seats:Array.from({length:4},(_,i)=>({name:'Player '+i,human:true}))},dt:1/60,colors:['blue','red','orange','green']};
+onlineAdapter.render(packet);assert(test('lensSplash.active'));assert.equal(test('shake'),.4);assert.equal(test("$('flash').textContent"),'BOOST!');
+const effectCount=test('window.effectCount');assert(effectCount>120,'landing must emit world water particles');
+onlineAdapter.render(packet);assert.equal(test('window.effectCount'),effectCount,'replayed snapshot must not replay the splash');
+console.log('PASS: online rendering produces landing spray, player lens water, shake and boost feedback exactly once.');

@@ -27,7 +27,7 @@ test('display contacts retain separation without moving the local boat or author
  const view=require('../online-sync.js').createContactView(D),boats=[boat(0,0),boat(2,0)],rings=[{x:8,y:0,z:0,radius:8.8}];
  const source=JSON.stringify({boats,rings}),first=view.solve(boats,rings,1/60);
  assert.equal(first.boats[0].x,0);assert.equal(D.boatContact(...first.boats),null);assert.equal(JSON.stringify({boats,rings}),source);
- assert.ok(first.rings[0].x>8);
+ assert.equal(first.rings[0].x,8,'visual contacts must not shove rings without physical impulses');
  const clear=[boat(0,0),boat(20,0)],next=view.solve(clear,[{x:40,y:0,z:0,radius:8.8}],1/60);
  assert.ok(next.boats[1].x>20,'separation offset must relax rather than disappear');
  view.reset();assert.equal(view.solve(clear,[],1/60).boats[1].x,20);

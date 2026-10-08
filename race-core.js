@@ -44,7 +44,11 @@ function create(mapId){
     const x=p.x-tan.z*lane,z=p.z+tan.x*lane;rings.push({x,z,vx:0,vz:0,radius:8.8,mass:.11,progress,y:waterH(x,z,0)+.3,vy:0});}
   const duck=activeMap.id==='playground'?{progress:.4,p:curveAt(.4),radius:halfWidthAt(.4)*.5,open:0}:null;
   let player=boats[0],keys={},raceTime=0,started=true,shake=0,flashT=0;
-  const splash={spawn(){}},bigSplash=()=>{},flash=()=>{};
+  // Simulation records feedback; the client renders it once, including after replay.
+  function feedback(b,type,data){const previous=b.feedback?.[type];b.feedback||={};b.feedback[type]={count:(previous?.count||0)+1,time:raceTime,...data};}
+  function bigSplash(x,y,z,power){feedback(player,'splash',{x,y,z,power});}
+  function flash(text){feedback(player,'message',{text});player.flashUntil=raceTime+1.5;}
+
   function recordFinish(b){if(b.finished)return;b.finishRank=1+boats.filter(a=>a.finished).length;b.finishTime=raceTime;b.finished=true;}
 function registerLanding(b,x,z,impact,now){
   b.landingAge=0;b.landingStrength=Math.min(1,impact/22);
@@ -55,7 +59,7 @@ function registerLanding(b,x,z,impact,now){
   b.heaveV=-impact;
   b.entryDrag=impact>14?.36:.14;
   
-  bigSplash(x+fx*5,waterH(x+fx*5,z+fz*5,now),z+fz*5,impact*.55);
+  feedback(b,'landing',{x:x+fx*5,y:waterH(x+fx*5,z+fz*5,now),z:z+fz*5,impact});
   b.jumpCount=(b.jumpCount||0)+1;
 }
 function tunnelAt(progress){return tunnels.find(s=>progress>=s.start&&progress<=s.end);}
@@ -154,10 +158,7 @@ function updatePlayer(dt, t){
         player.bonus = Math.min((player.bonus||0) + 26, 43);
         player.v = Math.min(player.v + 26, 52 + player.bonus);
         flash('BOOST!');
-        for(let i=0;i<8;i++)
-          splash.spawn(player.x, ground+0.5, player.z,
-            -Math.sin(player.heading)*player.v*0.3+(Math.random()-.5)*4, 2+Math.random()*3,
-            -Math.cos(player.heading)*player.v*0.3+(Math.random()-.5)*4, 0.5);
+
       }
       player.boostInside[boosts.indexOf(b)] = inside;
     }
@@ -333,7 +334,7 @@ function updatePlayer(dt, t){
     if(b.duckAge<.75){const f=b.duckAge/.75;b.x=b.duckX+(duck.p.x-b.duckX)*f;b.z=b.duckZ+(duck.p.z-b.duckZ)*f;b.y=waterH(b.x,b.z,raceTime)+duck.radius*.55*f;}
     else if(b.duckAge>=2){const progress=duck.progress+(duck.radius+16)/curveLen,p=curveAt(progress),dir=tangentAt(progress);
       b.prog=progress;b.x=p.x;b.z=p.z;b.y=waterH(p.x,p.z,raceTime);b.heading=Math.atan2(dir.x,dir.z);b.v=Math.max(28,b.duckSpeed);
-      b.duckTransit=false;b.duckUsed=true;b.duckForm=true;b.heave=b.y+1.2;b.heaveV=b.pitchSm=b.pitchV=b.yawVel=b.vy=0;b.waterEntry=b.onRamp=null;b.air=false;}
+      feedback(b,'message',{text:'QUACK!'});b.duckTransit=false;b.duckUsed=true;b.duckForm=true;b.heave=b.y+1.2;b.heaveV=b.pitchSm=b.pitchV=b.yawVel=b.vy=0;b.waterEntry=b.onRamp=null;b.air=false;}
     b.mesh.position.set(b.x,b.y+1.2,b.z);b.mesh.rotation.set(0,b.heading,0,'YXZ');return true;
   }
   function botInput(b){
@@ -355,13 +356,15 @@ function updatePlayer(dt, t){
       const a=boats[i],b=boats[j],hit=physics.boatContact(a,b);if(!hit)continue;
       const push=(hit.depth+.025)/2;
       a.x-=hit.nx*push;a.z-=hit.nz*push;b.x+=hit.nx*push;b.z+=hit.nz*push;
-      if(raceTime-(a.lastBump??-9)>.4){a.v*=.9;b.v*=.9;a.hits=(a.hits||0)+1;b.hits=(b.hits||0)+1;a.lastBump=b.lastBump=raceTime;}
+      if(raceTime-(a.lastBump??-9)>.4){a.shake=Math.max(a.shake||0,.35);b.shake=Math.max(b.shake||0,.35);a.v*=.9;b.v*=.9;a.hits=(a.hits||0)+1;b.hits=(b.hits||0)+1;a.lastBump=b.lastBump=raceTime;}
     }
     for(let step=0;step<2;step++){
       for(const r of rings)physics.stepFloat(r,dt/2);
       for(const b of boats){if(b.air||b.finished||b.duckTransit||b.onRamp)continue;
         const body={x:b.x,z:b.z,heading:b.heading,radius:2.6,halfLength:4.8,mass:1,inertia:28,yaw:b.yawVel||0,vx:Math.sin(b.heading)*b.v+(b.floatVX||0),vz:Math.cos(b.heading)*b.v+(b.floatVZ||0)};
-        let hit=false;for(const r of rings)if(physics.hitFloat(body,r)>0)hit=true;
+        let hit=false;for(const r of rings){const impulse=physics.hitFloat(body,r);if(impulse>0)hit=true;
+          if(impulse>.45&&raceTime-(b.lastFloatImpact??-9)>.22){b.shake=Math.max(b.shake||0,Math.min(.48,.14+impulse*.065));b.lastFloatImpact=raceTime;}
+        }
         if(hit||body.contact){b.x=body.x;b.z=body.z;b.v=body.vx*Math.sin(b.heading)+body.vz*Math.cos(b.heading);b.floatVX=body.vx-Math.sin(b.heading)*b.v;b.floatVZ=body.vz-Math.cos(b.heading)*b.v;b.yawVel=body.yaw;}
       }
       for(let i=0;i<rings.length;i++)for(let j=i+1;j<rings.length;j++){Object.assign(rings[i],{heading:0,halfLength:0,inertia:1,yaw:0});physics.hitFloat(rings[i],rings[j]);}
@@ -377,7 +380,7 @@ function updatePlayer(dt, t){
   }
   function step(inputs={}){
     raceTime+=DT;
-    for(const b of boats){player=b;keys=b.bot?botInput(b):(inputs[b.id]||{});if(!duckStep(b,DT))updatePlayer(DT,raceTime);}
+    for(const b of boats){player=b;shake=Math.max(0,(b.shake||0)-2.6*DT);flashT=Math.max(0,(b.flashUntil||0)-raceTime);keys=b.bot?botInput(b):(inputs[b.id]||{});if(!duckStep(b,DT))updatePlayer(DT,raceTime);b.shake=shake;}
     contacts(DT);
   }
   function snapshot(){return {time:raceTime,duckOpen:duck?duck.open:0,rings:rings.map(r=>({...r})),boats:boats.map(b=>{
