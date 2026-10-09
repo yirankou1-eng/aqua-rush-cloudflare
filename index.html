@@ -82,13 +82,31 @@
       radial-gradient(ellipse at 52% 88%,rgba(202,246,255,.34),transparent 58%),rgba(131,195,208,.055);
     box-shadow:inset 1px 1px 2px rgba(232,255,255,.72),inset -1px -2px 3px rgba(15,68,83,.5),0 2px 3px rgba(4,31,42,.17)}
 
-  #duckFilm{position:fixed;inset:0;z-index:10000;display:none;background:#fff3b8;align-items:center;justify-content:center;flex-direction:column;color:#80501c;font-family:system-ui;overflow:hidden}
+  #duckFilm{position:fixed;inset:0;z-index:10000;display:none;align-items:center;justify-content:center;flex-direction:column;overflow:hidden;color:#fff9d9;font-family:system-ui;background:radial-gradient(ellipse at 50% 44%,#267f86 0%,#114452 48%,#071d32 100%)}
   #duckFilm.active{display:flex}
-  #duckFilm svg{width:min(70vw,440px);overflow:visible;animation:duckPop .55s ease-in-out infinite alternate}
-  #duckFilm p{font-size:22px;font-weight:800;letter-spacing:3px}
-  #duckFilm .duckWing{transform-origin:170px 178px;animation:duckFlap .2s ease-in-out infinite alternate}
-  @keyframes duckPop{from{transform:translateY(12px) rotate(-7deg) scale(.9)}to{transform:translateY(-15px) rotate(7deg) scale(1.06)}}
-  @keyframes duckFlap{to{transform:rotate(-24deg)}}
+  #duckFilm:before{content:'';position:absolute;inset:-80%;background:repeating-conic-gradient(from 0deg,transparent 0deg 19deg,#ffe69a12 20deg 29deg,transparent 30deg 45deg);animation:duckRays 1.25s ease-out both}
+  #duckFilm:after{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at center,#fff6bda0,transparent 58%);pointer-events:none;animation:duckGlow 1.25s ease-out both}
+  #duckFilm svg{position:relative;z-index:1;width:min(76vw,440px,65vh);overflow:visible;flex-shrink:1;min-height:0}
+  #duckFilm p{position:relative;z-index:2;margin:0;font-weight:850;font-size:clamp(20px,4vw,32px);letter-spacing:5px;text-shadow:0 3px 15px #001b34;animation:duckTitle 1.25s ease-out both}
+  #duckFilm .duck-kicker{font-size:10px;letter-spacing:4px;color:#bceeed;margin-bottom:6px;animation:none}
+  #duckFilm .duck-caption{font-size:11px;letter-spacing:2px;font-weight:500;color:#bceeed;margin-top:8px;animation:duckTitle 1.25s ease-out both}
+  .film-boat{transform-origin:180px 160px;animation:duckBoat 1.25s ease-in both}.film-duck{transform-origin:180px 195px;animation:duckReveal 1.25s cubic-bezier(.22,.8,.3,1) both}
+  .film-halo{transform-origin:180px 158px;animation:duckHalo 1.25s ease-out both}.film-ripple{transform-origin:180px 252px;animation:duckRipple 1.25s ease-out both}.film-ripple.second{animation-delay:.12s}
+  .film-bubble{transform-box:fill-box;transform-origin:center;animation:duckBubble 1.25s ease-out both}.film-bubble:nth-child(2n){animation-delay:.08s}.film-bubble:nth-child(3n){animation-delay:.14s}
+  .film-spark{transform-box:fill-box;transform-origin:center;animation:duckSpark 1.25s ease-out both}.film-spark:nth-child(2n){animation-delay:.1s}
+  #duckFilm .duckWing{transform-origin:155px 190px;animation:duckWing 1.25s ease-out both}
+  @keyframes duckRays{from{transform:rotate(-18deg);opacity:0}35%{opacity:1}to{transform:rotate(8deg);opacity:.65}}
+  @keyframes duckGlow{0%,20%,100%{opacity:0}40%{opacity:1}70%{opacity:.15}}
+  @keyframes duckBoat{0%{opacity:1;transform:translateY(8px) scale(.9)}18%{opacity:1;transform:translateY(-8px) scale(1)}38%,100%{opacity:0;transform:translateY(-12px) rotate(-12deg) scale(.08)}}
+  @keyframes duckReveal{0%,25%{opacity:0;transform:translateY(12px) rotate(-12deg) scale(.15)}48%{opacity:1;transform:translateY(-12px) rotate(5deg) scale(1.08)}72%{transform:translateY(2px) rotate(-3deg) scale(.98)}100%{opacity:1;transform:translateY(0) rotate(0) scale(1)}}
+  @keyframes duckHalo{0%{opacity:0;transform:scale(.2)}25%{opacity:1}80%,100%{opacity:0;transform:scale(1.5)}}
+  @keyframes duckRipple{0%,30%{opacity:0;transform:scale(.35)}55%{opacity:.7}100%{opacity:.12;transform:scale(1.25)}}
+  @keyframes duckBubble{0%{opacity:0;transform:translateY(30px) scale(.3)}35%{opacity:.7}100%{opacity:0;transform:translateY(-70px) scale(1.2)}}
+  @keyframes duckSpark{0%,28%{opacity:0;transform:scale(.1) rotate(-35deg)}55%{opacity:1;transform:scale(1.2) rotate(8deg)}100%{opacity:.3;transform:scale(.75) rotate(25deg)}}
+  @keyframes duckWing{0%,42%{transform:rotate(0)}60%{transform:rotate(-14deg)}78%{transform:rotate(8deg)}100%{transform:rotate(0)}}
+  @keyframes duckTitle{0%,30%{opacity:0;transform:translateY(8px)}65%,100%{opacity:1;transform:translateY(0)}}
+  @media(max-height:500px){#duckFilm svg{width:min(52vh,260px)}#duckFilm p{font-size:22px}#duckFilm .duck-caption{font-size:10px;margin-top:5px}#duckFilm .duck-kicker{font-size:9px}}
+  @media(prefers-reduced-motion:reduce){#duckFilm:before,#duckFilm:after,#duckFilm *{animation:none!important}#duckFilm .film-boat,#duckFilm .film-halo{display:none}#duckFilm .film-bubble,#duckFilm .film-spark{opacity:.45}}
 
   #overlay.results-mode{background:rgba(3,15,26,.16);overflow:auto;justify-content:flex-start;padding:30px 16px;box-sizing:border-box}
   #overlay.results-mode h1{font-size:30px;letter-spacing:4px;text-shadow:none}
@@ -144,7 +162,25 @@
   <p id="resultSectors"></p></div><section id="routePanel" class="hidden" aria-label="Live race map"><svg id="routeSvg" viewBox="0 0 600 370" role="img" aria-label="Course, finish line and live racer positions"></svg><div id="routeLegend"></div><p class="route-note">Live positions · Checkered marker = finish · Offset dots stay linked to their exact position</p></section><p id="resultStatus" aria-live="polite"></p><div class="result-actions"><button id="toggleRoute" aria-expanded="false" aria-controls="routePanel">LIVE MAP</button><button id="restartRace">RACE AGAIN</button></div>
 </section></div>
 <div id="help" class="hidden">W/↑ throttle · S/↓ brake · A/D steer · Esc/P pause · R restart — orange ramps JUMP, green arrows BOOST, 2 laps</div>
-<div id="duckFilm" role="status" aria-label="Duck transformation animation"><svg viewBox="0 0 360 280" aria-hidden="true"><ellipse cx="180" cy="241" rx="112" ry="13" fill="#edcf74"/><path d="M64 154Q28 102 45 94Q75 123 106 133" fill="#ffc800"/><ellipse cx="169" cy="174" rx="107" ry="69" fill="#ffd92e"/><circle cx="231" cy="95" r="58" fill="#ffe047"/><path d="M269 102Q345 102 325 122Q297 143 265 126" fill="#ff9227"/><circle cx="250" cy="79" r="9" fill="#3c2922"/><circle cx="253" cy="76" r="3" fill="white"/><ellipse cx="258" cy="99" rx="12" ry="7" fill="#ffba53"/><path class="duckWing" d="M111 164Q166 135 212 173Q183 230 125 197" fill="#efb813"/><path d="M52 45l5 13 14 5-14 5-5 14-5-14-14-5 14-5M305 190l5 13 14 5-14 5-5 14-5-14-14-5 14-5" fill="#fff"/></svg><p>QUACK! LET'S GO!</p></div>
+<div id="duckFilm" role="status" aria-label="Transforming into a rubber duck">
+<p class="duck-kicker">A LITTLE SPLASH OF MAGIC</p>
+<svg viewBox="0 0 360 300" aria-hidden="true">
+<defs><linearGradient id="filmGold" x2=".2" y2="1"><stop stop-color="#fff49d"/><stop offset=".48" stop-color="#ffdd38"/><stop offset="1" stop-color="#efa91b"/></linearGradient><linearGradient id="filmBill" x2="0" y2="1"><stop stop-color="#ffbb59"/><stop offset="1" stop-color="#ed7926"/></linearGradient><radialGradient id="filmAura"><stop stop-color="#fffac2" stop-opacity=".45"/><stop offset="1" stop-color="#fffac2" stop-opacity="0"/></radialGradient></defs>
+<circle cx="180" cy="158" r="130" fill="url(#filmAura)"/>
+<g class="film-halo" fill="none" stroke="#ffe992"><circle cx="180" cy="158" r="92" stroke-width="2"/><circle cx="180" cy="158" r="110" stroke-width="1" stroke-dasharray="3 12"/></g>
+<g fill="none" stroke="#a9f4ec" stroke-width="1.5"><circle class="film-bubble" cx="55" cy="206" r="10"/><circle class="film-bubble" cx="290" cy="150" r="7"/><circle class="film-bubble" cx="87" cy="95" r="5"/><circle class="film-bubble" cx="319" cy="234" r="12"/><circle class="film-bubble" cx="128" cy="260" r="6"/><circle class="film-bubble" cx="247" cy="68" r="8"/></g>
+<g fill="none" stroke="#9ae7df" stroke-width="2"><ellipse class="film-ripple" cx="180" cy="252" rx="108" ry="17"/><ellipse class="film-ripple second" cx="180" cy="252" rx="90" ry="11"/></g>
+<g class="film-boat"><path d="M91 179L271 150L230 205L137 214Z" fill="#41bded" stroke="#b3edff" stroke-width="2"/><path d="M132 171L158 133L210 125L239 157Z" fill="#ecfaff"/><path d="M164 138L206 132L224 151L150 164Z" fill="#19647d"/><path d="M105 220Q160 246 252 218" fill="none" stroke="#b9f3ee" stroke-width="4"/></g>
+<g class="film-duck"><ellipse cx="180" cy="252" rx="91" ry="10" fill="#042d40" opacity=".23"/>
+<ellipse cx="169" cy="189" rx="101" ry="62" fill="url(#filmGold)"/><circle cx="228" cy="113" r="54" fill="url(#filmGold)"/>
+<path d="M265 119Q324 115 318 132Q299 151 261 138" fill="url(#filmBill)"/><path d="M267 133Q295 139 316 131" fill="none" stroke="#c67423" stroke-width="2"/>
+<ellipse cx="246" cy="103" rx="8" ry="10" fill="#382f23"/><circle cx="249" cy="100" r="3" fill="#fffce9"/><ellipse cx="252" cy="123" rx="11" ry="5" fill="#f5b33c" opacity=".65"/>
+<path class="duckWing" d="M109 178Q159 152 199 183Q179 220 127 215Q112 204 109 178" fill="#eeb528" stroke="#dda224" stroke-width="1.5"/>
+<path d="M108 156Q125 144 151 145M200 84Q211 72 230 73" fill="none" stroke="#fff7bd" stroke-width="7" stroke-linecap="round" opacity=".7"/>
+</g>
+<g fill="#fff5ba"><path class="film-spark" d="M70 77l5 14 14 5-14 5-5 14-5-14-14-5 14-5Z"/><path class="film-spark" d="M296 193l4 11 11 4-11 4-4 11-4-11-11-4 11-4Z"/><path class="film-spark" d="M171 44l3 9 9 3-9 3-3 9-3-9-9-3 9-3Z"/></g>
+</svg><p>DUCK MODE!</p><p class="duck-caption">QUACK! READY TO RACE.</p></div>
+
 <script src="three.min.js"></script>
 <script src="dynamics.js?v=lap-checkpoints-1"></script>
 <script src="maps.js"></script>
@@ -284,13 +320,18 @@ const water = new THREE.Mesh(wGeo, new THREE.ShaderMaterial({
     #include <fog_pars_vertex>
     uniform float uTime;
     uniform mat4 uReflectionMatrix;
+    attribute vec3 channelCoord;
+    attribute vec2 channelTangent;
     varying vec3 vWorld;
     varying vec4 vMirror;
+    varying vec3 vChannel;
+    varying float vStreamSpeed;
     ${waveGLSL}
     void main(){
       vec3 p=position;
       p.y=waterHeight(p.xz,uTime);
       vWorld=p;
+      vChannel=channelCoord;vStreamSpeed=dot(channelFlow(p.xz),channelTangent);
       vMirror=uReflectionMatrix*vec4(p,1.);
       vec4 mvPosition=viewMatrix*vec4(p,1.);
       gl_Position=projectionMatrix*mvPosition;
@@ -308,6 +349,8 @@ const water = new THREE.Mesh(wGeo, new THREE.ShaderMaterial({
     uniform vec2 uLampGridSize;
     varying vec3 vWorld;
     varying vec4 vMirror;
+    varying vec3 vChannel;
+    varying float vStreamSpeed;
     ${waveGLSL}
     void main(){
       vec2 p=vWorld.xz;
@@ -347,13 +390,20 @@ const water = new THREE.Mesh(wGeo, new THREE.ShaderMaterial({
       vec3 H=normalize(V+uSun);
       float nh=max(dot(N,H),0.);
       col+=mix(vec3(${DUSK?'1.,.55,.14':'1.,.87,.65'}),vec3(.25,.4,.75),uNight)*(pow(nh,420.)*mix(2.8,.5,uNight)+pow(nh,65.)*.05);
-      vec2 direction=normalize(flow+vec2(.0001));
-      vec2 across=vec2(-direction.y,direction.x);
-      vec2 streakUV=vec2(dot(advected,direction)*.09,dot(advected,across)*.55);
-      vec2 streakUV2=vec2(dot(advected2,direction)*.09,dot(advected2,across)*.55);
-      float streak=mix(noise(streakUV),noise(streakUV2),blend);
-      float foam=smoothstep(.65,.86,streak)*channel.w*channel.w;
-      col=mix(col,mix(vec3(.79,.91,.9),vec3(.035,.065,.11),uNight),foam*.8);
+      // Course distance and normalized lane follow the actual ribbon through bends.
+      // Fade before the banks so foam never draws across the tiled wall seam.
+      // Only narrow, fast channels produce visible rapids foam. Broad reaches stay clear.
+      float rapids=(1.-smoothstep(42.,55.,vChannel.z))*smoothstep(10.,12.5,abs(vStreamSpeed));
+      float lane=vChannel.y*5.;
+      float stream1=vChannel.x-vStreamSpeed*phase/.12;
+      float stream2=vChannel.x-vStreamSpeed*phase2/.12;
+      float ribbon1=pow(.5+.5*cos(6.2831853*(lane+.16*sin(stream1*.035)+.06*sin(stream1*.081+lane))),18.);
+      float ribbon2=pow(.5+.5*cos(6.2831853*(lane+.16*sin(stream2*.035)+.06*sin(stream2*.081+lane))),18.);
+      ribbon1*=.7+.3*sin(stream1*.055+lane*1.7);
+      ribbon2*=.7+.3*sin(stream2*.055+lane*1.7);
+      float bankFade=smoothstep(3.,11.,(1.-abs(vChannel.y))*vChannel.z);
+      float foam=mix(ribbon1,ribbon2,blend)*rapids*bankFade;
+      col=mix(col,mix(vec3(.72,.86,.85),vec3(.035,.065,.11),uNight),foam*.38);
       // Actual spotlight irradiance and moving specular highlights on the wave surface.
       vec2 lampCell=floor((vWorld.xz-uLampGridLayout.xy)/max(uLampGridLayout.z,1.));
       if(uNight>.5&&all(greaterThanEqual(lampCell,vec2(0.)))&&all(lessThan(lampCell,uLampGridSize)))for(int i=0;i<32;i++){
@@ -430,17 +480,18 @@ function laneLimitAt(t,margin=12){const inside=NIGHT&&activeMap.tunnels.some(s=>
 function facilityLane(t,lat){return lat*halfWidthAt(t)/HW;}
 // Water only occupies the actual channel; no elevated ocean behind the canyon walls.
 {
-  const pos=[],uv=[],idx=[],N=1400,C=24;
+  const pos=[],uv=[],idx=[],channelCoords=[],channelTangents=[],N=1400,C=24;
   for(let i=0;i<=N;i++){
     const p=curveAt(i/N),tan=tangentAt(i/N),width=halfWidthAt(i/N);
     for(let j=0;j<=C;j++){
       const lat=(j/C*2-1)*(width+.08);
       pos.push(p.x-tan.z*lat,p.y,p.z+tan.x*lat);uv.push(i/N,j/C);
+      channelCoords.push(i/N*curveLen,j/C*2-1,width);channelTangents.push(tan.x,tan.z);
       if(i<N&&j<C){const a=i*(C+1)+j,b=a+C+1;idx.push(a,a+1,b,a+1,b+1,b);}
     }
   }
   const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));
-  geo.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));geo.setIndex(idx);geo.computeVertexNormals();
+  geo.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));geo.setAttribute('channelCoord',new THREE.Float32BufferAttribute(channelCoords,3));geo.setAttribute('channelTangent',new THREE.Float32BufferAttribute(channelTangents,2));geo.setIndex(idx);geo.computeVertexNormals();
   water.geometry.dispose();water.geometry=geo;water.name='elevated-channel-water';
 }
 // nearest progress near a known previous t
@@ -1379,7 +1430,6 @@ function makeRubberDuck(){
     egg(head,black,side*.30,.32,.44,.056,.074,.04);
     egg(head,shine,side*.30-.012,.344,.474,.014,.019,.009);
   }
-  const mouth=egg(g,black,0,.68,.80,.305,.008,.065);mouth.visible=false;
   // Matching hemishells share one curved lip and one hinge. At rest the lip
   // vertices coincide exactly: opening is animation, never a gap in the model.
   const hinge=new THREE.Vector3(0,.705,.54);
@@ -1418,9 +1468,20 @@ function makeRubberDuck(){
     egg(upper,black,v.x,v.y+.001,v.z,.016,.006,.024);
   }
   const jaw=new THREE.Group();jaw.position.copy(hinge);g.add(jaw);jaw.add(bill(true));
-  const tongue=egg(jaw,new THREE.MeshStandardMaterial({color:0xa95635,roughness:.85}),0,.010,.255,.18,.009,.10);
-  tongue.visible=false;
-  g.userData={mouth,upper,jaw,head,body,tongue};return g;
+  // Recessed mouth cavity: a shaded rim narrows into a dark opening, not a tongue.
+  const throat=new THREE.Group();throat.position.set(0,.685,.84);throat.visible=false;g.add(throat);
+  const cavityPos=[],cavityColors=[],cavityIndex=[],segments=64;
+  const cavityFront=new THREE.Color(0x613b29),cavityBack=new THREE.Color(0x100d13);
+  for(let row=0;row<2;row++)for(let i=0;i<=segments;i++){
+    const a=i/segments*Math.PI*2,rx=row?.17:.245,ry=row?.065:.105;
+    cavityPos.push(Math.cos(a)*rx,Math.sin(a)*ry,row?-.035:0);
+    const c=(row?cavityBack:cavityFront).clone().multiplyScalar(.75+.25*Math.sin(a));cavityColors.push(c.r,c.g,c.b);
+    if(!row&&i<segments){const b=i+segments+1;cavityIndex.push(i,b,i+1,i+1,b,b+1);}
+  }
+  const cavityGeo=new THREE.BufferGeometry();cavityGeo.setAttribute('position',new THREE.Float32BufferAttribute(cavityPos,3));cavityGeo.setAttribute('color',new THREE.Float32BufferAttribute(cavityColors,3));cavityGeo.setIndex(cavityIndex);cavityGeo.computeVertexNormals();
+  throat.add(new THREE.Mesh(cavityGeo,new THREE.MeshBasicMaterial({vertexColors:true,side:THREE.DoubleSide})));
+  const depth=new THREE.Mesh(new THREE.CircleGeometry(1,64),new THREE.MeshBasicMaterial({color:0x100d13,side:THREE.DoubleSide}));depth.scale.set(.17,.065,1);depth.position.z=-.034;throat.add(depth);
+  g.userData={upper,jaw,head,body,throat};return g;
 }
 const giantDuck=activeMap.id==='playground'?(()=>{
   const progress=.4,p=curveAt(progress),radius=halfWidthAt(progress)*.5;
@@ -1464,8 +1525,7 @@ function updateDuck(dt,now){
   d.exit.visible=d.rim.visible=k>.01;
   const jawPhase=Math.min(1,d.open/.72),jawOpen=jawPhase*jawPhase*(3-2*jawPhase);
   parts.upper.rotation.x=-jawOpen*.32;parts.jaw.rotation.x=jawOpen*.50;
-  parts.mouth.visible=parts.tongue.visible=jawOpen>.025;
-  parts.head.rotation.x=-jawOpen*.09;parts.mouth.scale.y=.008+jawOpen*.155;
+  parts.head.rotation.x=-jawOpen*.09;parts.throat.visible=jawOpen>.025;parts.throat.scale.y=jawOpen;
   const beltPhase=THREE.MathUtils.clamp((d.open-.28)/.72,0,1),extension=beltPhase*beltPhase*(3-2*beltPhase);
   // Extend from the bill down to the local water surface; tread moves toward the mouth.
   d.mesh.updateMatrixWorld(true);
@@ -2472,7 +2532,7 @@ function loadMapPreviews(){
   const queue=[...MapCatalog.maps];
   function next(){
     if(!queue.length)return;
-    const map=queue.shift(),image=$('preview-'+map.id),cacheKey='aqua-scene-preview-v36-'+map.id;
+    const map=queue.shift(),image=$('preview-'+map.id),cacheKey='aqua-scene-preview-v39-'+map.id;
     let cached;try{cached=sessionStorage.getItem(cacheKey);}catch(e){}
     if(cached){image.src=cached;image.style.opacity=1;next();return;}
     const iframe=document.createElement('iframe');
@@ -2734,7 +2794,7 @@ if(typeof AquaOnline!=='undefined'&&!thumbnailMode&&!visualPreview){
       const view=contactView.solve(displayed,ringTargets,dt);
       view.boats.forEach((p,i)=>{if(i===0)return;const boat=allBoats[i];boat.mesh.position.x=boat.px=boat.wx=p.x;boat.mesh.position.z=boat.pz=boat.wz=p.z;});
       view.rings.forEach((r,i)=>{const ring=swimRings[i];if(!ring)return;Object.assign(ring,r);ring.mesh.position.set(r.x,r.y,r.z);ring.mesh.rotation.x=Math.atan2(waterH(r.x,r.z+2,t)-waterH(r.x,r.z-2,t),4)*.55;ring.mesh.rotation.z=-Math.atan2(waterH(r.x+2,r.z,t)-waterH(r.x-2,r.z,t),4)*.55;});
-      if(giantDuck){const d=giantDuck,parts=d.mesh.userData,k=latest.duckOpen;d.mesh.rotation.y=d.heading+(k?0:t*.16);d.mesh.position.y=physics.baseWaterHeight(d.p.x,d.p.z)+Math.sin(t*.8)*.25;parts.upper.rotation.x=-k*.32;parts.jaw.rotation.x=k*.5;parts.mouth.visible=parts.tongue.visible=k>.025;parts.mouth.scale.y=.008+k*.155;}
+      if(giantDuck){const d=giantDuck,parts=d.mesh.userData,k=latest.duckOpen;d.mesh.rotation.y=d.heading+(k?0:t*.16);d.mesh.position.y=physics.baseWaterHeight(d.p.x,d.p.z)+Math.sin(t*.8)*.25;parts.upper.rotation.x=-k*.32;parts.jaw.rotation.x=k*.5;parts.head.rotation.x=-k*.09;parts.throat.visible=k>.025;parts.throat.scale.y=k;}
       $('duckFilm').classList[player.duckTransit&&player.duckAge>=.75&&player.duckAge<2?'add':'remove']('active');
       if(phase==='finished'&&!player.finished){$('help').classList.remove('hidden');$('help').textContent='Race complete · Select Leave race in the top right';}
     }
